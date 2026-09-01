@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Nueva Reserva{% endblock %}
+{% block contenido %}
+<div class="col-md-6 mx-auto">
+    <h2>Realizar Reserva</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <!-- Campo oculto para el vehículo si fuera necesario seleccionar -->
+        <button type="submit" class="btn btn-success">Confirmar Reserva</button>
+        <a href="{% url 'listar_plazas' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

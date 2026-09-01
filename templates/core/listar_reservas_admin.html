@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}Gestión de Reservas{% endblock %}
+{% block contenido %}
+<h2>Panel de Reservas (Administración)</h2>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Plaza</th>
+            <th>Cliente</th>
+            <th>Vehículo</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for reserva in reservas %}
+        <tr>
+            <td>{{ reserva.plaza.numero }}</td>
+            <td>{{ reserva.vehiculo.cliente.usuario.username }}</td>
+            <td>{{ reserva.vehiculo.matricula }}</td>
+            <td>{{ reserva.dia }}</td>
+            <td>
+                <a href="{% url 'cancelar_reserva_admin' reserva.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Cancelar esta reserva?')">Cancelar</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center">No hay reservas registradas.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

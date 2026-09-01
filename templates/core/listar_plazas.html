@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}Plazas Disponibles{% endblock %}
+{% block contenido %}
+<h2>Estado del Aparcamiento</h2>
+<div class="row">
+    {% for plaza in plazas %}
+    <div class="col-md-3 mb-3">
+        <div class="card {% if plaza.ocupada %}border-danger{% else %}border-success{% endif %}">
+            <div class="card-body text-center">
+                <h5 class="card-title">Plaza {{ plaza.numero }}</h5>
+                <p class="card-text">
+                    <span class="badge {% if plaza.ocupada %}bg-danger{% else %}bg-success{% endif %}">
+                        {{ plaza.tipo|upper }}
+                    </span><br>
+                    Precio: {{ plaza.precio }}€/día<br>
+                    Estado: {% if plaza.ocupada %}Ocupada{% else %}Libre{% endif %}
+                </p>
+                {% if not plaza.ocupada and user.is_authenticated %}
+                    <a href="{% url 'crear_reserva' %}?plaza={{ plaza.id }}" class="btn btn-primary btn-sm">Reservar</a>
+                {% elif not user.is_authenticated %}
+                    <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-sm">Inicia sesión</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

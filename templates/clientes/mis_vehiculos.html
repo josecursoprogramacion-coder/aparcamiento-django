@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container mt-4">
+    <h2>Mis Vehículos</h2>
+    
+    <a href="{% url 'nuevo_vehiculo' %}" class="btn btn-success mb-3">
+        + Añadir Nuevo Vehículo
+    </a>
+
+    {% if vehiculos %}
+        <div class="list-group">
+            {% for vehiculo in vehiculos %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-1">{{ vehiculo.marca }} {{ vehiculo.modelo }}</h5>
+                    <p class="mb-1">
+                        <small class="text-muted">Matrícula:</small> {{ vehiculo.matricula }}<br>
+                        {% if vehiculo.color %}<small class="text-muted">Color:</small> {{ vehiculo.color }}<br>{% endif %}
+                        {% if vehiculo.tipo %}<small class="text-muted">Tipo:</small> {{ vehiculo.tipo }}{% endif %}
+                    </p>
+                </div>
+                
+                <div>
+                    <!-- Botón Editar -->
+                    <a href="{% url 'editar_vehiculo' vehiculo.pk %}" class="btn btn-sm btn-primary">
+                        ✏️ Editar
+                    </a>
+                    
+                    <!-- Botón Eliminar -->
+                    <a href="{% url 'eliminar_vehiculo' vehiculo.pk %}" class="btn btn-sm btn-danger">
+                        🗑️ Eliminar
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            No tienes vehículos registrados. <a href="{% url 'nuevo_vehiculo' %}">Añade uno ahora</a>.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

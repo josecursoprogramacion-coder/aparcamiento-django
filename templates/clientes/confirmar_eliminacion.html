@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Confirmar Eliminación</h4>
+                </div>
+                <div class="card-body">
+                    <p>¿Estás seguro de que quieres eliminar el siguiente vehículo?</p>
+                    
+                    <div class="alert alert-warning">
+                        <strong>🚗 {{ vehiculo.marca }} {{ vehiculo.modelo }}</strong><br>
+                        Matrícula: {{ vehiculo.matricula }}<br>
+                        (Esta acción no se puede deshacer)
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'mis_vehiculos' %}" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-danger">Sí, eliminar vehículo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

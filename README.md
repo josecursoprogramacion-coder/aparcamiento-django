@@ -1,54 +1,86 @@
-# Proyecto de Reservas de Aparcamiento
+# 🚗 Sistema de Gestión y Reservas de Aparcamiento
 
-## 📋 Descripción
-Desarrollo de una aplicación web completa para la gestión y reserva de plazas de aparcamiento. El sistema permite gestionar 30 plazas, controlar la disponibilidad por días y administrar los datos de clientes, vehículos y reservas.
+Aplicación web profesional desarrollada en **Python y Django** para la gestión integral y reserva de plazas de aparcamiento. El sistema permite administrar la disponibilidad de espacios, control de vehículos de clientes, franjas horarias y control de permisos por roles mediante grupos de usuario.
 
-El proyecto está desarrollado con **Python** y **Django**, utilizando **PostgreSQL** como base de datos y **Bootstrap 5** para la interfaz de usuario.
+---
 
-## 🎯 Objetivos del Proyecto
-- Implementar un sistema de reservas de días completos para 30 plazas.
-- Gestionar diferentes perfiles de usuario con permisos diferenciados.
-- Controlar la disponibilidad de plazas y la asignación de vehículos.
-- Proporcionar un panel de administración robusto para la gestión interna.
+## 📋 Características Principales
 
-## 👥 Usuarios y Perfiles
-La aplicación distingue cuatro tipos de usuarios, gestionados mediante el sistema de autenticación y grupos de Django:
+- **Gestión de Plazas y Plazos:** Administración de plazas de aparcamiento con clasificación por tipo (*Normal, Premium, Eléctrico*) y control de franjas horarias disponibles (`Plazo`).
+- **Control de Clientes y Vehículos:** Registro de usuarios con perfiles asociados y gestión individual de vehículos vinculados por matrícula.
+- **Sistema de Reservas:** Creación y validación de reservas con comprobación de disponibilidad en tiempo real para evitar solapamientos.
+- **Roles y Permisos Diferenciados:**
+  - **Visitante:** Visualización de plazas libres.
+  - **Cliente:** Gestión de perfil, vehículos y reservas personales.
+  - **Establecimiento:** Control operativo global y cancelación/gestión de reservas con decoradores de seguridad personalizados (`establecimiento_required`).
+  - **Administrador:** Acceso completo al panel de administración de Django para supervisión y estadísticas.
 
-1.  **Visitante (Sin registrar):**
-    - Puede ver el listado de plazas disponibles.
-    - No puede realizar reservas.
-2.  **Cliente (Registrado):**
-    - Puede gestionar sus propios vehículos.
-    - Puede realizar reservas para sus vehículos en plazas libres.
-    - Puede ver su historial de reservas.
-3.  **Establecimiento:**
-    - Puede gestionar las plazas (editar tipo, precio).
-    - Puede ver el estado general del aparcamiento.
-    - Puede gestionar reservas (confirmar/cancelar).
-4.  **Administrador:**
-    - Acceso total al panel de administración de Django.
-    - Gestión de usuarios y grupos.
-    - Acceso a estadísticas y reportes.
+---
+
+## 🛠️ Stack Tecnológico
+
+- **Backend:** Python 3.13 / Django 6.1
+- **Base de Datos:** PostgreSQL (con soporte para `psycopg`)
+- **Frontend:** Bootstrap 5.3.3 (vía CDN), HTML5, CSS3, plantillas modularizadas de Django
+- **Control de Calidad / Harness:** Sistema integrado de agentes y metodologías RIPER-5 para desarrollo guiado por especificaciones.
+
+---
 
 ## 🏗️ Estructura del Proyecto
-Siguiendo la arquitectura modular aprendida, el proyecto se divide en:
+
+La arquitectura sigue un diseño modular dividido en aplicaciones independientes dentro de Django:
 
 ```text
-aparcamiento_project/
-├── config/                  # Configuración del proyecto (settings, urls)
-├── aparcamiento/            # Aplicación principal: Plazas y Reservas
-│   ├── models.py            # Modelos: Plaza, Reserva
-│   ├── views.py             # Lógica de negocio y vistas
-│   ├── forms.py             # Formularios (ModelForm)
-│   ├── urls.py
-│   └── templates/
-├── clientes/                # Aplicación de gestión de usuarios y vehículos
-│   ├── models.py            # Modelos: Cliente, Vehiculo
-│   ├── views.py             # Gestión de perfil y vehículos
-│   ├── forms.py
-│   ├── decorators.py        # Decoradores personalizados (ej: cliente_required)
-│   └── templates/
-├── static/                  # Archivos estáticos (CSS, JS, imágenes)
-├── templates/               # Plantillas base y componentes (navbar, footer)
-├── manage.py
-└── requirements.txt
+proyecto_fin_curso/
+├── config/                  # Configuración central del proyecto (settings.py, urls.py, wsgi/asgi)
+├── core/                    # Aplicación principal de negocio (Plazas, Reservas, Plazos, vistas y formularios)
+├── clientes/                # Gestión de usuarios, perfiles de Cliente, Vehículos y decoradores de acceso
+├── templates/               # Plantillas globales (base.html, componentes de navegación/footer, login/registro)
+├── process/                 # Documentación de procesos, contexto del repositorio y planes de desarrollo (Harness)
+├── manage.py                # Utilidad de línea de comandos de Django
+└── requirements.txt         # Dependencias del proyecto
+```
+
+---
+
+## 🚀 Guía de Instalación y Ejecución
+
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/josecursoprogramacion-coder/aparcamiento-django.git
+cd aparcamiento-django
+```
+
+### 2. Configurar el entorno virtual
+```bash
+python -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+```
+
+### 3. Instalar dependencias
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configurar la Base de Datos
+Asegúrate de tener un servidor PostgreSQL ejecutándose en el puerto configurado (`localhost:5433` con base de datos `aparcamiento_db`), o ajusta los parámetros en `config/settings.py`.
+
+### 5. Aplicar migraciones y crear superusuario
+```bash
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+### 6. Ejecutar el servidor de desarrollo
+```bash
+python manage.py runserver
+```
+Accede a la aplicación en tu navegador en `http://127.0.0.1:8000/`.
+
+---
+
+## 🧪 Pruebas y Verificación
+Para verificar el estado del sistema y la ejecución de tests unitarios/integrados:
+```bash
+python manage.py test
+```

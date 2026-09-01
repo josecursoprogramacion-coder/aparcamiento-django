@@ -48,3 +48,12 @@ Thumbs.db
 
 # Vibecode Harness Backup
 .vibecode-backup*/
+
+# Large binaries and packages
+*.deb
+*.rpm
+*.dmg
+*.pkg
+*.iso
+clientes/static/img/*.deb
+

@@ -17,4 +17,5 @@ urlpatterns = [
     
     # Clientes
     path('crear-cliente/', views.crear_cliente, name='crear_cliente'),
+    path('editar-perfil/', views.editar_perfil, name='editar_perfil'),
 ]

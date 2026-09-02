@@ -23,6 +23,28 @@ class ReservaForm(forms.ModelForm):
         else:
             self.fields['vehiculo'].queryset = Vehiculo.objects.none()
 
+    def clean(self):
+        cleaned_data = super().clean()
+        vehiculo = cleaned_data.get('vehiculo')
+        plaza = cleaned_data.get('plaza')
+
+        if vehiculo and plaza:
+            tipo_vehiculo = (vehiculo.tipo or '').lower()
+            tipo_plaza = (plaza.tipo or '').lower()
+
+            # Validación de correspondencia de tipos
+            if tipo_vehiculo == 'electrico' and tipo_plaza != 'electrico':
+                raise forms.ValidationError("🚫 No se puede reservar: Un vehículo eléctrico solo puede estacionarse en plazas de tipo Eléctrico.")
+            
+            if tipo_vehiculo == 'premium' and tipo_plaza != 'premium':
+                raise forms.ValidationError("🚫 No se puede reservar: Un vehículo premium requiere una plaza de tipo Premium.")
+
+            if tipo_vehiculo and tipo_plaza and tipo_vehiculo not in ['turismo', 'otro', '']:
+                if tipo_vehiculo != tipo_plaza and tipo_plaza != 'normal':
+                    raise forms.ValidationError(f"🚫 No se puede reservar: El tipo de vehículo ('{vehiculo.tipo}') no corresponde con el tipo de la plaza ('{plaza.tipo}').")
+
+        return cleaned_data
+
 class PlazaForm(forms.ModelForm):
     class Meta:
         model = Plaza

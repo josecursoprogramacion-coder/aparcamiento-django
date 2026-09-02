@@ -7,20 +7,21 @@ from django.contrib.auth.decorators import login_required
 from .models import Cliente, Reserva, Vehiculo
 from core.models import Plazo
 from django.contrib import messages
-from .forms import ClienteForm, VehiculoForm
+from .forms import ClienteForm, VehiculoForm, RegistroUsuarioForm, EditarUsuarioForm
 
 def inicio(request):
     return render(request, 'clientes/inicio.html')
 
 def registro(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = RegistroUsuarioForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
+            messages.success(request, '¡Cuenta creada con éxito!')
             return redirect('inicio')
     else:
-        form = UserCreationForm()
+        form = RegistroUsuarioForm()
     # Ruta CORRECTA (registro.html en la raíz)
     return render(request, 'registro.html', {'form': form})
 
@@ -44,14 +45,42 @@ def crear_cliente(request):
         form = ClienteForm(request.POST)
         if form.is_valid():
             cliente = form.save(commit=False)
-            cliente.usuario = request.user  # Asociar al usuario actual
+            cliente.usuario = request.user
             cliente.save()
             messages.success(request, '¡Perfil de cliente creado exitosamente!')
-            return redirect('mis_vehiculos')  # Redirigir a mis-vehiculos
+            return redirect('mis_vehiculos')
     else:
         form = ClienteForm()
     
     return render(request, 'clientes/crear_cliente.html', {'form': form})
+
+@login_required
+def editar_perfil(request):
+    try:
+        cliente, created = Cliente.objects.get_or_create(usuario=request.user)
+    except Exception:
+        cliente = None
+
+    if request.method == 'POST':
+        user_form = EditarUsuarioForm(request.POST, instance=request.user)
+        cliente_form = ClienteForm(request.POST, instance=cliente) if cliente else None
+
+        if user_form.is_valid() and (not cliente_form or cliente_form.is_valid()):
+            user_form.save()
+            if cliente_form:
+                c = cliente_form.save(commit=False)
+                c.usuario = request.user
+                c.save()
+            messages.success(request, '¡Tus datos de perfil han sido actualizados con éxito!')
+            return redirect('editar_perfil')
+    else:
+        user_form = EditarUsuarioForm(instance=request.user)
+        cliente_form = ClienteForm(instance=cliente) if cliente else None
+
+    return render(request, 'clientes/editar_perfil.html', {
+        'user_form': user_form,
+        'cliente_form': cliente_form
+    })
 
 def mis_vehiculos(request):
     try:

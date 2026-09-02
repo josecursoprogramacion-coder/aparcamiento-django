@@ -21,7 +21,7 @@
                 {% endif %}
                 {% if user|is_establecimiento or user.is_superuser %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'listar_plazas' %}">Gestionar Plazas</a>
+                        <a class="nav-link" href="{% url 'gestionar_plazas' %}">Gestionar Plazas</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'listar_reservas_admin' %}">Gestionar Reservas</a>

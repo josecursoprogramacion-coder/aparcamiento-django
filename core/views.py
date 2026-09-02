@@ -1,11 +1,40 @@
 # core/views.py
 
-from django.shortcuts import render, redirect, get_object_or_404  # ← CORREGIDO
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from .models import Plaza, Reserva, Plazo
-from .forms import ReservaForm
+from .forms import ReservaForm, PlazaForm
+from clientes.decorators import establecimiento_required
+
+@establecimiento_required
+def gestionar_plazas(request):
+    plazas = Plaza.objects.all().order_by('numero')
+    libres_count = plazas.filter(ocupada=False).count()
+    ocupadas_count = plazas.filter(ocupada=True).count()
+    total_count = plazas.count()
+    
+    context = {
+        'plazas': plazas,
+        'libres_count': libres_count,
+        'ocupadas_count': ocupadas_count,
+        'total_count': total_count,
+    }
+    return render(request, 'core/gestionar_plazas.html', context)
+
+@establecimiento_required
+def crear_plaza_admin(request):
+    if request.method == 'POST':
+        form = PlazaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '¡Plaza creada correctamente!')
+            return redirect('gestionar_plazas')
+    else:
+        form = PlazaForm()
+    
+    return render(request, 'core/gestionar_plazas_crear.html', {'form': form})
 from clientes.models import Vehiculo
 from clientes.decorators import establecimiento_required
 
@@ -26,20 +55,49 @@ def mis_reservas(request):
 
 # Vista para crear una reserva
 @login_required
-def crear_reserva(request, plazo_id):
-    plazo = get_object_or_404(Plazo, id=plazo_id, disponible=True)
-    
+def crear_reserva(request, plazo_id=None):
+    try:
+        cliente = request.user.cliente_perfil
+    except Exception:
+        messages.error(request, 'Debes crear un perfil de cliente primero para poder reservar.')
+        return redirect('crear_cliente')
+
+    # Verificar si el cliente tiene vehículos registrados
+    if not cliente.vehiculos.exists():
+        messages.warning(request, 'Debes registrar al menos un vehículo antes de realizar una reserva.')
+        return redirect('nuevo_vehiculo')
+
+    plazo = None
+    if plazo_id:
+        plazo = get_object_or_404(Plazo, id=plazo_id, disponible=True)
+
     if request.method == 'POST':
-        form = ReservaForm(request.POST)
+        form = ReservaForm(request.POST, user=request.user)
         if form.is_valid():
             reserva = form.save(commit=False)
-            reserva.cliente = request.user.cliente_perfil  # Asegúrate de que este perfil exista
-            reserva.plazo = plazo
-            reserva.save()
-            messages.success(request, 'Reserva creada con éxito.')
-            return redirect('mis_reservas')
+            reserva.cliente = cliente
+            if plazo:
+                reserva.plaza = plazo.plaza
+                reserva.dia = plazo.fecha
+            try:
+                reserva.save()
+                if plazo:
+                    plazo.disponible = False
+                    plazo.save()
+                messages.success(request, '¡Reserva creada con éxito!')
+                return redirect('mis_reservas')
+            except Exception as e:
+                messages.error(request, f"Error al guardar la reserva: {e}")
+        else:
+            # Mostrar errores específicos del formulario por pantalla si los hay
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
-        form = ReservaForm()
+        initial_data = {}
+        if plazo:
+            initial_data = {'plaza': plazo.plaza, 'dia': plazo.fecha}
+        form = ReservaForm(initial=initial_data, user=request.user)
     
     return render(request, 'core/crear_reserva.html', {'form': form, 'plazo': plazo})
 

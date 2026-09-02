@@ -6,9 +6,9 @@ Aplicación web profesional desarrollada en **Python y Django** para la gestión
 
 ## 📋 Características Principales
 
-- **Gestión de Plazas y Plazos:** Administración de plazas de aparcamiento con clasificación por tipo (*Normal, Premium, Eléctrico*) y control de franjas horarias disponibles (`Plazo`).
+- **Gestión de Plazas y Plazos:** Administración de plazas de aparcamiento con clasificación por tipo (*Normal, Premium, Eléctrico*), control de franjas horarias (`Plazo`) y panel de gestión de plazas para establecimientos.
 - **Control de Clientes y Vehículos:** Registro de usuarios con perfiles asociados y gestión individual de vehículos vinculados por matrícula.
-- **Sistema de Reservas:** Creación y validación de reservas con comprobación de disponibilidad en tiempo real para evitar solapamientos.
+- **Sistema de Reservas:** Creación, consulta de historial y cancelación de reservas con comprobación de disponibilidad en tiempo real.
 - **Roles y Permisos Diferenciados:**
   - **Visitante:** Visualización de plazas libres.
   - **Cliente:** Gestión de perfil, vehículos y reservas personales.

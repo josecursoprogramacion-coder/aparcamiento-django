@@ -10,11 +10,19 @@ from clientes.decorators import establecimiento_required
 
 @establecimiento_required
 def gestionar_plazas(request):
-    plazas = Plaza.objects.all().order_by('numero')
-    libres_count = plazas.filter(ocupada=False).count()
-    ocupadas_count = plazas.filter(ocupada=True).count()
+    plazas = Plaza.objects.all().order_by('nivel', 'numero')
+    
+    # Calcular libres y ocupadas basadas en si tienen plazos ocupados o reservas
+    hoy = datetime.now().date()
+    ocupadas_ids = Reserva.objects.filter(estado='confirmada').values_list('plazo__plaza_id', flat=True)
+    
+    libres_count = plazas.exclude(id__in=ocupadas_ids).count()
+    ocupadas_count = plazas.filter(id__in=ocupadas_ids).count()
     total_count = plazas.count()
     
+    for plaza in plazas:
+        plaza.is_ocupada = plaza.id in ocupadas_ids
+
     context = {
         'plazas': plazas,
         'libres_count': libres_count,
@@ -62,11 +70,6 @@ def crear_reserva(request, plazo_id=None):
         messages.error(request, 'Debes crear un perfil de cliente primero para poder reservar.')
         return redirect('crear_cliente')
 
-    # Verificar si el cliente tiene vehículos registrados
-    if not cliente.vehiculos.exists():
-        messages.warning(request, 'Debes registrar al menos un vehículo antes de realizar una reserva.')
-        return redirect('nuevo_vehiculo')
-
     plazo = None
     if plazo_id:
         plazo = get_object_or_404(Plazo, id=plazo_id, disponible=True)
@@ -74,31 +77,28 @@ def crear_reserva(request, plazo_id=None):
     if request.method == 'POST':
         form = ReservaForm(request.POST, user=request.user)
         if form.is_valid():
-            reserva = form.save(commit=False)
-            reserva.cliente = cliente
-            if plazo:
-                reserva.plaza = plazo.plaza
-                reserva.dia = plazo.fecha
+            selected_plazo = form.cleaned_data['plazo']
+            selected_vehiculo = form.cleaned_data['vehiculo']
             try:
-                reserva.save()
-                if plazo:
-                    plazo.disponible = False
-                    plazo.save()
+                reserva = Reserva.objects.create(
+                    cliente=cliente,
+                    vehiculo=selected_vehiculo,
+                    plazo=selected_plazo,
+                    estado='confirmada'
+                )
+                selected_plazo.disponible = False
+                selected_plazo.save()
                 messages.success(request, '¡Reserva creada con éxito!')
                 return redirect('mis_reservas')
             except Exception as e:
                 messages.error(request, f"Error al guardar la reserva: {e}")
         else:
-            # Mostrar errores específicos del formulario por pantalla si los hay
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f"{field}: {error}")
+                    messages.error(request, f"{error}")
     else:
-        initial_data = {}
-        if plazo:
-            initial_data = {'plaza': plazo.plaza, 'dia': plazo.fecha}
-        form = ReservaForm(initial=initial_data, user=request.user)
-    
+        form = ReservaForm(initial={'plazo': plazo} if plazo else None, user=request.user)
+
     return render(request, 'core/crear_reserva.html', {'form': form, 'plazo': plazo})
 
 # Vista para cancelar una reserva (solo establecimientos)
@@ -112,7 +112,7 @@ def cancelar_reserva_admin(request, pk):
 # Vista para listar todas las reservas (solo establecimientos)
 @establecimiento_required
 def listar_reservas_admin(request):
-    reservas = Reserva.objects.all().order_by('-dia')
+    reservas = Reserva.objects.exclude(estado='cancelada').order_by('-fecha_creacion')
     return render(request, 'core/listar_reservas_admin.html', {'reservas': reservas})
 
 #Vista para mostrar mapa interactivo de las plazas
@@ -130,17 +130,15 @@ def mapa_plazas(request):
     """
     nivel = request.GET.get('nivel', 'Sótano 1')
     
-    # Obtener todos los niveles disponibles
-    niveles = Plaza.objects.values_list('nivel', flat=True).distinct().order_by('nivel')
+    # Obtener todos los niveles disponibles ordenados explícitamente
+    niveles = ['Sótano 1', 'Sótano 2', 'Planta 0']
     
-    # Obtener plazas del nivel seleccionado
-    plazas = Plaza.objects.filter(nivel=nivel)
+    # Obtener TODAS las plazas de todos los niveles para pasarlas a JavaScript (plazasData)
+    plazas_todas = Plaza.objects.all()
     
-    # Procesar estado de cada plaza
     plazas_con_estado = []
     
-    for plaza in plazas:
-        # Obtener plazos disponibles (próximos 7 días)
+    for plaza in plazas_todas:
         hoy = datetime.now().date()
         plazos_futuros = Plazo.objects.filter(
             plaza=plaza,
@@ -148,7 +146,6 @@ def mapa_plazas(request):
             fecha__lt=hoy + timedelta(days=7)
         )
         
-        # Contar reservas activas
         reservas_confirmadas = Reserva.objects.filter(
             plazo__plaza=plaza,
             estado='confirmada',
@@ -161,21 +158,19 @@ def mapa_plazas(request):
             plazo__fecha__gte=hoy
         ).count()
         
-        # Determinar estado
         if reservas_pendientes > 0:
-            estado = 'tramite'  # Azul
+            estado = 'tramite'
         elif reservas_confirmadas > 0:
-            estado = 'ocupada'  # Rojo
+            estado = 'ocupada'
         else:
-            estado = 'libre'  # Verde
+            estado = 'libre'
         
-        # Obtener el precio del primer plazo disponible
         precio = plazos_futuros.first().precio if plazos_futuros.exists() else 0.00
         
         plazas_con_estado.append({
             'id': plaza.id,
             'numero': plaza.numero,
-            'nivel': plaza.nivel,
+            'nivel': plaza.nivel.strip(),
             'pixel_x': plaza.pixel_x,
             'pixel_y': plaza.pixel_y,
             'radio': plaza.radio,
@@ -184,9 +179,8 @@ def mapa_plazas(request):
             'plazos_disponibles': plazos_futuros.count(),
         })
     
-    # Dimensiones de la imagen (ajusta según tu plano real)
-    imagen_width = 1200  # Ancho de la imagen en píxeles
-    imagen_height = 800  # Alto de la imagen en píxeles
+    imagen_width = 1754
+    imagen_height = 1240
     
     contexto = {
         'plazas': plazas_con_estado,

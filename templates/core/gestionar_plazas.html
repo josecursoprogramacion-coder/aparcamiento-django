@@ -53,13 +53,13 @@
                     <tbody>
                         {% for plaza in plazas %}
                         <tr>
-                            <td class="fw-bold">Plaza #{{ plaza.numero }}</td>
+                            <td class="fw-bold">Plaza #{{ plaza.numero }} ({{ plaza.nivel }})</td>
                             <td>
-                                <span class="badge bg-secondary">{{ plaza.get_tipo_display }}</span>
+                                <span class="badge bg-secondary">Plaza Estándar</span>
                             </td>
-                            <td>{{ plaza.precio }} €</td>
+                            <td>-</td>
                             <td>
-                                {% if plaza.ocupada %}
+                                {% if plaza.is_ocupada %}
                                     <span class="badge bg-danger px-3 py-2">Ocupada</span>
                                 {% else %}
                                     <span class="badge bg-success px-3 py-2">Libre</span>

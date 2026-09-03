@@ -59,6 +59,7 @@ class Reserva(models.Model):
     ]
     
     cliente = models.ForeignKey('clientes.Cliente', on_delete=models.CASCADE, related_name='reservas', null=True, blank=True)
+    vehiculo = models.ForeignKey('clientes.Vehiculo', on_delete=models.CASCADE, null=True, blank=True)
     plazo = models.ForeignKey(Plazo, on_delete=models.CASCADE, related_name='reservas', null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -68,4 +69,12 @@ class Reserva(models.Model):
     
     def __str__(self):
         return f"Reserva #{self.id} - {self.cliente} ({self.estado})"
+    
+    def cancelar(self):
+        """Método para cancelar la reserva y liberar el plazo"""
+        self.estado = 'cancelada'
+        self.save()
+        if self.plazo:
+            self.plazo.disponible = True
+            self.plazo.save()
 

@@ -11,21 +11,33 @@
     <thead class="table-dark">
         <tr>
             <th>Plaza</th>
-            <th>Vehículo</th>
+            <th>Nivel</th>
             <th>Fecha</th>
+            <th>Horario</th>
+            <th>Precio</th>
             <th>Estado</th>
         </tr>
     </thead>
     <tbody>
         {% for reserva in reservas %}
         <tr>
-            <td>Plaza {{ reserva.plaza.numero }}</td>
-            <td>{{ reserva.vehiculo.marca }} {{ reserva.vehiculo.modelo }} ({{ reserva.vehiculo.matricula }})</td>
-            <td>{{ reserva.dia }}</td>
-            <td><span class="badge bg-success">Confirmada</span></td>
+            <td>Plaza #{{ reserva.plazo.plaza.numero }}</td>
+            <td>{{ reserva.plazo.plaza.nivel }}</td>
+            <td>{{ reserva.plazo.fecha }}</td>
+            <td>{{ reserva.plazo.horario_desde }} - {{ reserva.plazo.horario_hasta }}</td>
+            <td>{{ reserva.plazo.precio }} €</td>
+            <td>
+                {% if reserva.estado == 'confirmada' %}
+                    <span class="badge bg-success">Confirmada</span>
+                {% elif reserva.estado == 'cancelada' %}
+                    <span class="badge bg-danger">Cancelada</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">{{ reserva.get_estado_display }}</span>
+                {% endif %}
+            </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="text-center py-4 text-muted">No tienes reservas activas actualmente.</td></tr>
+        <tr><td colspan="6" class="text-center py-4 text-muted">No tienes reservas activas actualmente.</td></tr>
         {% endfor %}
     </tbody>
 </table>

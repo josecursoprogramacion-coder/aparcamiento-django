@@ -3,11 +3,20 @@ from .models import Reserva, Plaza, Plazo
 from clientes.models import Vehiculo
 
 class ReservaForm(forms.ModelForm):
+    vehiculo = forms.ModelChoiceField(
+        queryset=Vehiculo.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='🚗 Selecciona tu vehículo'
+    )
+
     class Meta:
         model = Reserva
-        fields = ['plazo']
+        fields = ['vehiculo', 'plazo']
         widgets = {
             'plazo': forms.Select(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'plazo': '🕒 Franja Horaria (Plaza y Fecha)'
         }
 
     def __init__(self, *args, **kwargs):
@@ -15,10 +24,9 @@ class ReservaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Filtrar plazos disponibles
         self.fields['plazo'].queryset = Plazo.objects.filter(disponible=True)
-
-    def clean(self):
-        cleaned_data = super().clean()
-        return cleaned_data
+        # Filtrar vehículos del usuario
+        if user and hasattr(user, 'cliente_perfil'):
+            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=user.cliente_perfil)
 
 class PlazaForm(forms.ModelForm):
     class Meta:

@@ -12,10 +12,12 @@
         <tr>
             <th>Plaza</th>
             <th>Nivel</th>
+            <th>Vehículo</th>
             <th>Fecha</th>
             <th>Horario</th>
             <th>Precio</th>
             <th>Estado</th>
+            <th>Acciones</th>
         </tr>
     </thead>
     <tbody>
@@ -23,6 +25,7 @@
         <tr>
             <td>Plaza #{{ reserva.plazo.plaza.numero }}</td>
             <td>{{ reserva.plazo.plaza.nivel }}</td>
+            <td>{% if reserva.vehiculo %}{{ reserva.vehiculo.marca }} {{ reserva.vehiculo.modelo }} ({{ reserva.vehiculo.matricula }}){% else %}-{% endif %}</td>
             <td>{{ reserva.plazo.fecha }}</td>
             <td>{{ reserva.plazo.horario_desde }} - {{ reserva.plazo.horario_hasta }}</td>
             <td>{{ reserva.plazo.precio }} €</td>
@@ -35,9 +38,16 @@
                     <span class="badge bg-warning text-dark">{{ reserva.get_estado_display }}</span>
                 {% endif %}
             </td>
+            <td>
+                {% if reserva.estado != 'cancelada' %}
+                    <a href="{% url 'cancelar_reserva_cliente' reserva.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de que deseas cancelar tu reserva?')">Cancelar</a>
+                {% else %}
+                    <span class="text-muted">Cancelada</span>
+                {% endif %}
+            </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center py-4 text-muted">No tienes reservas activas actualmente.</td></tr>
+        <tr><td colspan="8" class="text-center py-4 text-muted">No tienes reservas activas actualmente.</td></tr>
         {% endfor %}
     </tbody>
 </table>

@@ -56,7 +56,7 @@ def listar_plazas(request):
 def mis_reservas(request):
     try:
         cliente = request.user.cliente_perfil
-        reservas = Reserva.objects.filter(cliente=cliente)
+        reservas = Reserva.objects.filter(cliente=cliente).exclude(estado='cancelada')
     except Exception:
         reservas = []
     return render(request, 'core/mis_reservas.html', {'reservas': reservas})
@@ -101,7 +101,18 @@ def crear_reserva(request, plazo_id=None):
 
     return render(request, 'core/crear_reserva.html', {'form': form, 'plazo': plazo})
 
-# Vista para cancelar una reserva (solo establecimientos)
+@login_required
+def cancelar_reserva_cliente(request, pk):
+    try:
+        cliente = request.user.cliente_perfil
+    except Exception:
+        messages.error(request, 'No tienes un perfil de cliente asociado.')
+        return redirect('mis_reservas')
+
+    reserva = get_object_or_404(Reserva, pk=pk, cliente=cliente)
+    reserva.cancelar()
+    messages.success(request, '¡Tu reserva ha sido cancelada y la plaza liberada con éxito!')
+    return redirect('mis_reservas')
 @establecimiento_required
 def cancelar_reserva_admin(request, pk):
     reserva = get_object_or_404(Reserva, pk=pk)

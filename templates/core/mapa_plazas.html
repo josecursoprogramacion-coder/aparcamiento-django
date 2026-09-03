@@ -4,406 +4,882 @@
 {% block titulo %}Mapa de Plazas - Parking Catedral{% endblock %}
 
 {% block contenido %}
-<div class="container-fluid py-4">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <h2 class="mb-3 text-center">🅿️ Selecciona tu Plaza</h2>
+<style>
+    .parking-page {
+        --parking-green: #198754;
+        --parking-red: #dc3545;
+        --parking-blue: #0d6efd;
+        --parking-gray: #6c757d;
+        --parking-selected: #ffc107;
+    }
 
-    <!-- Filtro por Nivel y Fecha -->
+    #parking-map-container {
+        position: relative;
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+        border: 2px solid #2b2b2b;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #f7f7f7;
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, .12);
+    }
+
+    #planoImage {
+        width: 100%;
+        height: auto;
+        display: block;
+        user-select: none;
+        -webkit-user-drag: none;
+    }
+
+    #marcadores-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .plaza-marker {
+        transition:
+            transform .12s ease,
+            filter .12s ease,
+            opacity .12s ease;
+        transform-box: fill-box;
+        transform-origin: center;
+    }
+
+    .plaza-marker.disponible {
+        cursor: pointer;
+    }
+
+    .plaza-marker.disponible:hover {
+        transform: scale(1.14);
+        filter: brightness(1.08);
+    }
+
+    .plaza-marker.no-disponible {
+        cursor: not-allowed;
+    }
+
+    .plaza-btn.seleccionada {
+        border-width: 3px !important;
+        box-shadow: 0 0 0 .2rem rgba(255, 193, 7, .3);
+    }
+
+    .leyenda-punto {
+        width: 18px;
+        height: 18px;
+        display: inline-block;
+        border-radius: 50%;
+        margin-right: .45rem;
+        border: 2px solid rgba(0, 0, 0, .2);
+    }
+
+    @media (max-width: 991.98px) {
+        #lista-plazas-lateral {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+</style>
+
+<div class="container-fluid py-4 parking-page">
+    <h2 class="mb-3 text-center">🅿️ Selecciona tu plaza</h2>
+
     <div class="row mb-4 justify-content-center">
-        <div class="col-md-4 text-center">
-            <label for="nivelSelect" class="form-label fw-bold">Planta:</label>
-            <select id="nivelSelect" class="form-select d-inline-block w-auto" onchange="cambiarNivel()">
+        <div class="col-md-6 text-center">
+            <label for="nivelSelect" class="form-label fw-bold">
+                Planta:
+            </label>
+
+            <select
+                id="nivelSelect"
+                class="form-select d-inline-block w-auto"
+            >
                 {% for nivel in niveles %}
-                <option value="{{ nivel }}" {% if nivel == nivel_actual %}selected{% endif %}>{{ nivel }}</option>
+                    <option
+                        value="{{ nivel }}"
+                        {% if nivel == nivel_actual %}selected{% endif %}
+                    >
+                        {{ nivel }}
+                    </option>
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-5 text-center">
-            <label for="filtroFecha" class="form-label fw-bold">📅 Filtrar por Día:</label>
-            <input type="date" id="filtroFecha" value="{{ fecha_actual }}" class="form-control d-inline-block w-auto" onchange="cambiarFechaFiltro()">
-            {% if fecha_actual %}
-                <div class="mt-1">
-                    <span class="badge bg-info text-dark">Mostrando estado para el día: <strong>{{ fecha_actual }}</strong></span>
-                    <a href="{% url 'mapa_plazas' %}?nivel={{ nivel_actual }}" class="btn btn-sm btn-outline-secondary ms-2 py-0">Quitar filtro</a>
-                </div>
-            {% else %}
-                <div class="mt-1">
-                    <span class="badge bg-secondary">Mostrando disponibilidad general (próx. 7 días)</span>
-                </div>
-            {% endif %}
+    </div>
+
+    <div class="d-flex justify-content-center gap-4 flex-wrap mb-3">
+        <div class="d-flex align-items-center">
+            <span
+                class="leyenda-punto"
+                style="background: var(--parking-green);"
+            ></span>
+            <strong>Con horarios libres</strong>
+        </div>
+
+        <div class="d-flex align-items-center">
+            <span
+                class="leyenda-punto"
+                style="background: var(--parking-red);"
+            ></span>
+            <strong>Sin horarios libres</strong>
+        </div>
+
+        <div class="d-flex align-items-center">
+            <span
+                class="leyenda-punto"
+                style="background: var(--parking-blue);"
+            ></span>
+            <strong>En trámite</strong>
+        </div>
+
+        <div class="d-flex align-items-center">
+            <span
+                class="leyenda-punto"
+                style="background: var(--parking-gray);"
+            ></span>
+            <strong>Sin horarios creados</strong>
         </div>
     </div>
 
-    <!-- Leyenda -->
-    <div class="row mb-3 justify-content-center">
-        <div class="col-12 d-flex justify-content-center gap-4 flex-wrap">
-            <div class="d-flex align-items-center">
-                <span class="badge rounded-circle" style="background-color: #28a745; width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></span>
-                <strong>Libre</strong>
-            </div>
-            <div class="d-flex align-items-center">
-                <span class="badge rounded-circle" style="background-color: #dc3545; width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></span>
-                <strong>Reservada</strong>
-            </div>
-            <div class="d-flex align-items-center">
-                <span class="badge rounded-circle" style="background-color: #007bff; width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></span>
-                <strong>En Trámite</strong>
-            </div>
-        </div>
-    </div>
+    <div class="row g-3 justify-content-center align-items-start">
+        <div class="col-xl-9 col-lg-8">
+            <div id="parking-map-container">
+                <img
+                    id="planoImage"
+                    src="{% static 'img/planos/planta0.jpg' %}"
+                    alt="Plano del Parking Catedral"
+                    draggable="false"
+                >
 
-    <!-- Contenedor del Mapa con Imagen y Panel Lateral de Plazas -->
-    <div class="row justify-content-center">
-        <div class="col-lg-9">
-            <div id="parking-map-container" style="position: relative; width: 100%; max-width: 1000px; margin: 0 auto; border: 2px solid #333; border-radius: 10px; overflow: hidden; background-color: #f5f5f5;">
-                
-                <!-- Imagen del Plano con ruta estática directa -->
-                <img id="planoImage" src="/static/img/planos/sotano1.jpg" alt="Plano del parking" style="width: 100%; height: auto; display: block;">
-                
-                <!-- Contenedor SVG para los marcadores -->
-                <svg id="marcadores-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-                    <!-- Los marcadores se dibujarán aquí con JavaScript -->
-                </svg>
+                <svg
+                    id="marcadores-svg"
+                    viewBox="0 0 {{ imagen_width }} {{ imagen_height }}"
+                    preserveAspectRatio="xMidYMid meet"
+                    aria-label="Plazas seleccionables"
+                ></svg>
             </div>
         </div>
 
-        <!-- Panel Lateral de Plazas Disponibles -->
-        <div class="col-lg-3">
+        <div class="col-xl-3 col-lg-4">
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0">📋 Plazas en <span id="panelNivelTitulo">Sótano 1</span></h5>
+                    <h5 class="mb-0">
+                        📋 Plazas en
+                        <span id="panelNivelTitulo">{{ nivel_actual }}</span>
+                    </h5>
                 </div>
-                <div class="card-body p-2" style="max-height: 550px; overflow-y: auto;">
-                    <div id="lista-plazas-lateral" class="d-grid gap-2">
-                        <!-- Botones de plazas generados dinámicamente -->
-                    </div>
+
+                <div
+                    class="card-body p-2"
+                    style="max-height: 620px; overflow-y: auto;"
+                >
+                    <div
+                        id="lista-plazas-lateral"
+                        class="d-grid gap-2"
+                    ></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Detalles y Selección de Horario -->
-    <div class="modal fade" id="plazaModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <div
+        class="modal fade"
+        id="plazaModal"
+        tabindex="-1"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Plaza <span id="modalNumero"></span> - <span id="modalNivel"></span></h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title">
+                        Plaza
+                        <span id="modalNumero"></span>
+                        —
+                        <span id="modalNivel"></span>
+                    </h5>
+
+                    <button
+                        type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"
+                        aria-label="Cerrar"
+                    ></button>
                 </div>
+
                 <div class="modal-body">
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <p><strong>Estado:</strong> <span id="modalEstado"></span></p>
-                            <p><strong>Precio por hora:</strong> €<span id="modalPrecio"></span></p>
+                            <p>
+                                <strong>Estado:</strong>
+                                <span id="modalEstado"></span>
+                            </p>
+
+                            <p class="mb-md-0">
+                                <strong>Precio desde:</strong>
+                                <span id="modalPrecio"></span>
+                            </p>
                         </div>
+
                         <div class="col-md-6">
-                            <p><strong>Plazos disponibles (próx. 7 días):</strong> <span id="modalPlazosDisp" class="badge bg-info"></span></p>
+                            <p>
+                                <strong>
+                                    Horarios disponibles
+                                    (próximos 7 días):
+                                </strong>
+
+                                <span
+                                    id="modalPlazosDisp"
+                                    class="badge bg-info text-dark"
+                                ></span>
+                            </p>
                         </div>
                     </div>
 
-                    <hr>
+                    <div
+                        id="mensajeSinHorarios"
+                        class="alert alert-secondary d-none"
+                    >
+                        No hay horarios disponibles para esta plaza.
+                    </div>
 
-                    <!-- Selector de Fecha, Horario y Vehículo -->
                     <div id="selectoresHorario">
-                        <label for="fechaSelect" class="form-label fw-bold">Selecciona Fecha y Horario:</label>
-                        <select id="fechaSelect" class="form-select mb-2" onchange="actualizarHorarios()">
-                            <option value="">-- Selecciona --</option>
-                        </select>
-                        
-                        <select id="horarioSelect" class="form-select mb-3">
-                            <option value="">-- Selecciona Horario --</option>
+                        <hr>
+
+                        <div class="mb-3">
+                            <label
+                                for="vehiculoSelect"
+                                class="form-label fw-bold"
+                            >
+                                🚗 Selecciona tu vehículo:
+                            </label>
+                            <select
+                                id="vehiculoSelect"
+                                class="form-select"
+                            >
+                                <option value="">-- Selecciona vehículo --</option>
+                            </select>
+                        </div>
+
+                        <label
+                            for="fechaInicioSelect"
+                            class="form-label fw-bold"
+                        >
+                            📅 Fecha de Inicio:
+                        </label>
+                        <select
+                            id="fechaInicioSelect"
+                            class="form-select mb-3"
+                        >
+                            <option value="">-- Selecciona fecha inicio --</option>
                         </select>
 
-                        <label for="vehiculoSelect" class="form-label fw-bold">Selecciona tu Vehículo:</label>
-                        <select id="vehiculoSelect" class="form-select">
-                            <option value="">-- Selecciona Vehículo --</option>
+                        <label
+                            for="fechaFinSelect"
+                            class="form-label fw-bold"
+                        >
+                            📅 Fecha de Fin:
+                        </label>
+                        <select
+                            id="fechaFinSelect"
+                            class="form-select mb-3"
+                            disabled
+                        >
+                            <option value="">-- Selecciona primero fecha inicio --</option>
                         </select>
+
+                        <div class="card bg-light p-3 mb-3 border">
+                            <div class="d-flex justify-content-between text-success fs-5 fw-bold">
+                                <span>Total:</span>
+                                <span id="totalMonto">0.00 €</span>
+                            </div>
+                        </div>
+
+                        <!-- Campo oculto o referencias necesarias para el envío -->
+                        <div id="horariosOcultos" class="d-none"></div>
                     </div>
                 </div>
+
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="button" class="btn btn-success" id="btnReservarModal" onclick="reservarPlaza()">
-                        📅 Reservar Plaza
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        Cerrar
                     </button>
+
+    <button
+        type="button"
+        class="btn btn-success"
+        id="btnReservarModal"
+        onclick="reservarPlaza()"
+    >
+        📅 Continuar con la reserva
+    </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{{ plazas|json_script:"plazas-data" }}
 
 <script>
-    // Variables globales
-    const plazasData = {{ plazas|safe }};
-    const imagenWidth = {{ imagen_width }};
-    const imagenHeight = {{ imagen_height }};
+document.addEventListener("DOMContentLoaded", () => {
+    const plazasData = JSON.parse(
+        document.getElementById("plazas-data").textContent
+    );
+
+    const nivelSelect = document.getElementById("nivelSelect");
+    const planoImage = document.getElementById("planoImage");
+    const svg = document.getElementById("marcadores-svg");
+    const listaLateral = document.getElementById("lista-plazas-lateral");
+    const panelNivelTitulo = document.getElementById("panelNivelTitulo");
+
+    const vehiculoSelect = document.getElementById("vehiculoSelect");
+    const fechaInicioSelect = document.getElementById("fechaInicioSelect");
+    const fechaFinSelect = document.getElementById("fechaFinSelect");
+    const totalMonto = document.getElementById("totalMonto");
+    const horariosOcultos = document.getElementById("horariosOcultos");
+    const selectoresHorario = document.getElementById("selectoresHorario");
+    const mensajeSinHorarios = document.getElementById("mensajeSinHorarios");
+
+    const plazaModalElement = document.getElementById("plazaModal");
+    const plazaModal = new bootstrap.Modal(plazaModalElement);
+
     let plazaSeleccionada = null;
     let plazosDisponibles = [];
 
-    // Mapeo de niveles a URLs estáticas directas asegurando la barra inicial
     const nivelImagenes = {
-        'Sótano 1': '/static/img/planos/sotano1.jpg',
-        'Sótano 2': '/static/img/planos/sotano2.jpg',
-        'Planta 0': '/static/img/planos/planta0.jpg',
-        'Planta 1': '/static/img/planos/sotano1.jpg',
+        "Planta 0": "{% static 'img/planos/planta0.jpg' %}",
+        "Sótano 1": "{% static 'img/planos/sotano1.jpg' %}",
+        "Sótano 2": "{% static 'img/planos/sotano2.jpg' %}",
     };
 
-    // 1. Inicializar
-    function inicializar() {
-        const nivelSelect = document.getElementById('nivelSelect');
-        const nivel = nivelSelect ? nivelSelect.value : 'Sótano 1';
-        console.log("Inicializando mapa con nivel:", nivel);
-        cargarPlano(nivel);
-        dibujarMarcadores(nivel);
+    // Se generan desde urls.py, por lo que funcionan aunque la app
+    // esté incluida bajo un prefijo (por ejemplo /parking/).
+    const urlPlazosBase =
+        "{% url 'obtener_plazos_plaza' 999999 %}";
+
+    const urlReservaBase =
+        "{% url 'crear_reserva' 999999 %}";
+
+    function urlConId(urlBase, id) {
+        return urlBase.replace("999999", String(id));
     }
 
-    // 2. Cargar la imagen del plano
-    function cargarPlano(nivel) {
-        const imagen = document.getElementById('planoImage');
-        const urlImg = nivelImagenes[nivel] || '/static/img/planos/sotano1.jpg';
-        console.log("Cargando imagen:", urlImg);
-        imagen.src = urlImg;
-        // Redibujar marcadores al cargar la imagen para asegurar sincronización de dimensiones
-        imagen.onload = function() {
-            dibujarMarcadores(nivel);
-        };
+    const colores = {
+        libre: "#198754",
+        ocupada: "#dc3545",
+        tramite: "#0d6efd",
+        sin_plazos: "#6c757d",
+    };
+
+    const textosEstado = {
+        libre: '<span class="badge bg-success">Disponible</span>',
+        ocupada: '<span class="badge bg-danger">Sin horarios libres</span>',
+        tramite: '<span class="badge bg-primary">En trámite</span>',
+        sin_plazos: '<span class="badge bg-secondary">Sin horarios</span>',
+    };
+
+    const claseBoton = {
+        libre: "btn-outline-success",
+        ocupada: "btn-outline-danger",
+        tramite: "btn-outline-primary",
+        sin_plazos: "btn-outline-secondary",
+    };
+
+    function escaparTexto(valor) {
+        const div = document.createElement("div");
+        div.textContent = String(valor);
+        return div.innerHTML;
     }
 
-    // 3. Dibujar marcadores en el SVG y actualizar panel lateral
-    function dibujarMarcadores(nivel) {
-        const svg = document.getElementById('marcadores-svg');
-        svg.innerHTML = ''; // Limpiar
-
-        // Actualizar título del panel lateral
-        document.getElementById('panelNivelTitulo').textContent = nivel;
-        const listaLateral = document.getElementById('lista-plazas-lateral');
-        listaLateral.innerHTML = '';
-
-        const plazasNivel = plazasData.filter(p => p.nivel.trim() === nivel.trim());
-
-        plazasNivel.forEach(plaza => {
-            // Rellenar panel lateral con botones de selección
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = `btn btn-sm text-start d-flex justify-content-between align-items-center ${plaza.estado === 'libre' ? 'btn-outline-success' : 'btn-outline-danger'}`;
-            btn.innerHTML = `<span>🅿️ Plaza #${plaza.numero}</span> <span class="badge ${plaza.estado === 'libre' ? 'bg-success' : 'bg-danger'}">${plaza.estado.toUpperCase()}</span>`;
-            btn.addEventListener('click', () => abrirModalPlaza(plaza));
-            listaLateral.appendChild(btn);
-
-            // Calcular posición y tamaño en porcentaje
-            const widthPct = 4.2;  
-            const heightPct = 5.8; 
-            const x = (plaza.pixel_x / imagenWidth) * 100 - (widthPct / 2);
-            const y = (plaza.pixel_y / imagenHeight) * 100 - (heightPct / 2);
-
-            // Crear rectángulo
-            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            rect.setAttribute('x', `${x}%`);
-            rect.setAttribute('y', `${y}%`);
-            rect.setAttribute('width', `${widthPct}%`);
-            rect.setAttribute('height', `${heightPct}%`);
-            rect.setAttribute('rx', '4');
-            rect.setAttribute('ry', '4');
-            rect.setAttribute('fill', getColor(plaza.estado));
-            rect.setAttribute('stroke', '#ffff00');
-            rect.setAttribute('stroke-width', '2.5');
-            rect.setAttribute('opacity', '0.85');
-            rect.setAttribute('cursor', 'pointer');
-            rect.setAttribute('class', 'plaza-marker');
-
-            rect.addEventListener('click', () => abrirModalPlaza(plaza));
-            svg.appendChild(rect);
-
-            // Crear texto con número
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', `${x + (widthPct / 2)}%`);
-            text.setAttribute('y', `${y + (heightPct / 2)}%`);
-            text.setAttribute('text-anchor', 'middle');
-            text.setAttribute('dominant-baseline', 'central');
-            text.setAttribute('font-size', '14');
-            text.setAttribute('font-weight', 'bold');
-            text.setAttribute('fill', '#ffffff');
-            text.setAttribute('stroke', '#000000');
-            text.setAttribute('stroke-width', '0.5px');
-            text.setAttribute('pointer-events', 'none');
-            text.textContent = plaza.numero;
-
-            svg.appendChild(text);
-        });
-    }
-
-    // 4. Obtener color según estado
-    function getColor(estado) {
-        switch(estado) {
-            case 'libre': return '#28a745';     // Verde
-            case 'ocupada': return '#dc3545';   // Rojo
-            case 'tramite': return '#007bff';   // Azul
-            default: return '#6c757d';
-        }
-    }
-
-    // 5. Cambiar nivel
     function cambiarNivel() {
-        const nivelSelect = document.getElementById('nivelSelect');
         const nivel = nivelSelect.value;
-        const fechaInput = document.getElementById('filtroFecha');
-        const fecha = fechaInput ? fechaInput.value : '';
-        
-        let url = `/mapa/?nivel=${encodeURIComponent(nivel)}`;
-        if (fecha) {
-            url += `&fecha=${encodeURIComponent(fecha)}`;
-        }
-        window.location.href = url;
+
+        planoImage.src = nivelImagenes[nivel];
+        panelNivelTitulo.textContent = nivel;
+
+        plazaSeleccionada = null;
+        dibujarPlazas(nivel);
+
+        const url = new URL(window.location.href);
+        url.searchParams.set("nivel", nivel);
+        window.history.replaceState({}, "", url);
     }
 
-    function cambiarFechaFiltro() {
-        const nivelSelect = document.getElementById('nivelSelect');
-        const nivel = nivelSelect.value;
-        const fechaInput = document.getElementById('filtroFecha');
-        const fecha = fechaInput.value;
-        
-        let url = `/mapa/?nivel=${encodeURIComponent(nivel)}`;
-        if (fecha) {
-            url += `&fecha=${encodeURIComponent(fecha)}`;
-        }
-        window.location.href = url;
+    function dibujarPlazas(nivel) {
+        svg.replaceChildren();
+        listaLateral.replaceChildren();
+
+        const plazasNivel = plazasData
+            .filter((plaza) => plaza.nivel === nivel)
+            .sort((a, b) => a.numero - b.numero);
+
+        plazasNivel.forEach((plaza) => {
+            crearMarcador(plaza);
+            crearBotonLateral(plaza);
+        });
     }
 
-    // 6. Abrir modal con detalles
-    function abrirModalPlaza(plaza) {
-        plazaSeleccionada = plaza;
+    function crearMarcador(plaza) {
+        const ns = "http://www.w3.org/2000/svg";
+        const grupo = document.createElementNS(ns, "g");
 
-        // Llenar datos en el modal
-        document.getElementById('modalNumero').textContent = plaza.numero;
-        document.getElementById('modalNivel').textContent = plaza.nivel;
-        document.getElementById('modalPrecio').textContent = plaza.precio.toFixed(2);
-        document.getElementById('modalPlazosDisp').textContent = plaza.plazos_disponibles;
+        grupo.setAttribute(
+            "class",
+            `plaza-marker ${
+                plaza.estado === "libre"
+                    ? "disponible"
+                    : "no-disponible"
+            }`
+        );
 
-        const estadoTexto = {
-            'libre': '<span class="badge bg-success">Disponible</span>',
-            'ocupada': '<span class="badge bg-danger">Reservada</span>',
-            'tramite': '<span class="badge bg-primary">En Trámite</span>'
-        };
-        document.getElementById('modalEstado').innerHTML = estadoTexto[plaza.estado];
+        grupo.dataset.plazaId = plaza.id;
 
-        // Mostrar/ocultar selectores según estado
-        const selectores = document.getElementById('selectoresHorario');
-        const btnReservar = document.getElementById('btnReservarModal');
+        const circulo = document.createElementNS(ns, "circle");
+        circulo.setAttribute("cx", plaza.pixel_x);
+        circulo.setAttribute("cy", plaza.pixel_y);
+        circulo.setAttribute("r", plaza.radio || 28);
+        circulo.setAttribute(
+            "fill",
+            colores[plaza.estado] || colores.sin_plazos
+        );
+        circulo.setAttribute("fill-opacity", "0.90");
+        circulo.setAttribute("stroke", "#ffffff");
+        circulo.setAttribute("stroke-width", "5");
 
-        if (plaza.estado === 'libre') {
-            selectores.style.display = 'block';
-            btnReservar.style.display = 'inline-block';
-            cargarPlazos(plaza.id);
-        } else {
-            selectores.style.display = 'none';
-            btnReservar.style.display = 'none';
-        }
+        const borde = document.createElementNS(ns, "circle");
+        borde.setAttribute("cx", plaza.pixel_x);
+        borde.setAttribute("cy", plaza.pixel_y);
+        borde.setAttribute("r", (plaza.radio || 28) + 5);
+        borde.setAttribute("fill", "none");
+        borde.setAttribute("stroke", "rgba(0,0,0,.55)");
+        borde.setAttribute("stroke-width", "2");
 
-        new bootstrap.Modal(document.getElementById('plazaModal')).show();
-    }
+        const texto = document.createElementNS(ns, "text");
+        texto.setAttribute("x", plaza.pixel_x);
+        texto.setAttribute("y", plaza.pixel_y + 1);
+        texto.setAttribute("text-anchor", "middle");
+        texto.setAttribute("dominant-baseline", "middle");
+        texto.setAttribute("font-size", "26");
+        texto.setAttribute("font-weight", "800");
+        texto.setAttribute("fill", "#ffffff");
+        texto.setAttribute("stroke", "#000000");
+        texto.setAttribute("stroke-width", "1");
+        texto.setAttribute("paint-order", "stroke");
+        texto.setAttribute("pointer-events", "none");
+        texto.textContent = plaza.numero;
 
-    // 7. Cargar plazos disponibles y vehículos (AJAX)
-    function cargarPlazos(plazaId) {
-        fetch(`/plazos/${plazaId}/`)
-            .then(response => response.json())
-            .then(data => {
-                plazosDisponibles = data.plazos;
-                actualizarSelectores();
-                
-                // Rellenar vehículos
-                const vehiculoSelect = document.getElementById('vehiculoSelect');
-                vehiculoSelect.innerHTML = '<option value="">-- Selecciona Vehículo --</option>';
-                if (data.vehiculos && data.vehiculos.length > 0) {
-                    data.vehiculos.forEach(v => {
-                        const opt = document.createElement('option');
-                        opt.value = v.id;
-                        opt.textContent = `${v.marca} ${v.modelo} (${v.matricula})`;
-                        vehiculoSelect.appendChild(opt);
-                    });
+        grupo.append(circulo, borde, texto);
+
+        if (plaza.estado === "libre") {
+            grupo.setAttribute("role", "button");
+            grupo.setAttribute("tabindex", "0");
+            grupo.setAttribute(
+                "aria-label",
+                `Plaza ${plaza.numero}, ${plaza.nivel}`
+            );
+
+            grupo.addEventListener(
+                "click",
+                () => abrirModalPlaza(plaza)
+            );
+
+            grupo.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    abrirModalPlaza(plaza);
                 }
-            })
-            .catch(error => console.error('Error:', error));
+            });
+        }
+
+        svg.appendChild(grupo);
     }
 
-    // 8. Actualizar selectores de fecha y horario
-    function actualizarSelectores() {
-        const fechaSelect = document.getElementById('fechaSelect');
-        const fechasUnicas = [...new Set(plazosDisponibles.map(p => p.fecha))];
+    function crearBotonLateral(plaza) {
+        const boton = document.createElement("button");
+        boton.type = "button";
 
-        fechaSelect.innerHTML = '<option value="">-- Selecciona Fecha --</option>';
-        fechasUnicas.forEach(fecha => {
-            const option = document.createElement('option');
-            option.value = fecha;
-            option.textContent = new Date(fecha).toLocaleDateString('es-ES');
-            fechaSelect.appendChild(option);
-        });
+        boton.className = [
+            "btn",
+            "btn-sm",
+            "plaza-btn",
+            "text-start",
+            "d-flex",
+            "justify-content-between",
+            "align-items-center",
+            claseBoton[plaza.estado] || "btn-outline-secondary",
+        ].join(" ");
+
+        boton.dataset.plazaId = plaza.id;
+
+        const nombre = document.createElement("span");
+        nombre.textContent = `🅿️ Plaza ${plaza.numero}`;
+
+        const estado = document.createElement("span");
+        estado.className = "badge text-bg-dark";
+        estado.textContent = (
+            plaza.estado === "libre"
+                ? `${plaza.plazos_disponibles} libre(s)`
+                : plaza.estado.replace("_", " ")
+        );
+
+        boton.append(nombre, estado);
+
+        if (plaza.estado === "libre") {
+            boton.addEventListener(
+                "click",
+                () => abrirModalPlaza(plaza)
+            );
+        } else {
+            boton.disabled = true;
+        }
+
+        listaLateral.appendChild(boton);
     }
 
-    function actualizarHorarios() {
-        const fechaSelect = document.getElementById('fechaSelect');
-        const horarioSelect = document.getElementById('horarioSelect');
-        const fechaSeleccionada = fechaSelect.value;
+    async function abrirModalPlaza(plaza) {
+        plazaSeleccionada = plaza;
+        plazosDisponibles = [];
 
-        const horarios = plazosDisponibles.filter(p => p.fecha === fechaSeleccionada);
+        marcarSeleccionVisual(plaza.id);
 
-        horarioSelect.innerHTML = '<option value="">-- Selecciona Horario --</option>';
-        horarios.forEach(horario => {
-            const option = document.createElement('option');
-            option.value = horario.id;
-            option.textContent = `${horario.horario_desde} - ${horario.horario_hasta} (€${horario.precio})`;
-            option.dataset.plazoid = horario.id;
-            horarioSelect.appendChild(option);
-        });
-    }
+        document.getElementById("modalNumero").textContent =
+            plaza.numero;
 
-    // 9. Reservar plaza
-    function reservarPlaza() {
-        const horarioSelect = document.getElementById('horarioSelect');
-        const vehiculoSelect = document.getElementById('vehiculoSelect');
-        const plazoId = horarioSelect.value;
-        const vehiculoId = vehiculoSelect.value;
+        document.getElementById("modalNivel").textContent =
+            plaza.nivel;
 
-        if (!plazoId) {
-            alert('Por favor, selecciona una fecha y horario.');
+        document.getElementById("modalEstado").innerHTML =
+            textosEstado[plaza.estado]
+            || textosEstado.sin_plazos;
+
+        document.getElementById("modalPrecio").textContent =
+            plaza.precio > 0
+                ? `€${Number(plaza.precio).toFixed(2)}`
+                : "—";
+
+        document.getElementById("modalPlazosDisp").textContent =
+            plaza.plazos_disponibles;
+
+        resetSelectores();
+        plazaModal.show();
+
+        if (plaza.estado !== "libre") {
+            mostrarSinHorarios();
             return;
         }
+
+        try {
+            await cargarPlazos(plaza.id);
+        } catch (error) {
+            console.error(error);
+            mostrarSinHorarios(
+                "No se pudieron cargar los horarios. "
+                + "Vuelve a intentarlo."
+            );
+        }
+    }
+
+    function marcarSeleccionVisual(plazaId) {
+        document
+            .querySelectorAll(".plaza-btn")
+            .forEach((boton) => {
+                boton.classList.toggle(
+                    "seleccionada",
+                    Number(boton.dataset.plazaId) === Number(plazaId)
+                );
+            });
+
+        document
+            .querySelectorAll(".plaza-marker circle:first-child")
+            .forEach((circulo) => {
+                circulo.setAttribute("stroke", "#ffffff");
+                circulo.setAttribute("stroke-width", "5");
+            });
+
+        const grupo = svg.querySelector(
+            `[data-plaza-id="${plazaId}"]`
+        );
+
+        if (grupo) {
+            const circulo = grupo.querySelector("circle");
+            circulo.setAttribute("stroke", "#ffc107");
+            circulo.setAttribute("stroke-width", "8");
+        }
+    }
+
+    function resetSelectores() {
+        mensajeSinHorarios.classList.add("d-none");
+        selectoresHorario.classList.remove("d-none");
+
+        if (vehiculoSelect) {
+            vehiculoSelect.innerHTML = '<option value="">-- Selecciona vehículo --</option>';
+            if (window._vehiculosUsuario && window._vehiculosUsuario.length > 0) {
+                window._vehiculosUsuario.forEach(v => {
+                    const opt = document.createElement("option");
+                    opt.value = v.id;
+                    opt.textContent = `${v.marca} ${v.modelo} (${v.matricula})`;
+                    vehiculoSelect.appendChild(opt);
+                });
+            }
+        }
+
+        fechaInicioSelect.innerHTML =
+            '<option value="">-- Selecciona fecha inicio --</option>';
+
+        fechaFinSelect.innerHTML =
+            '<option value="">-- Selecciona primero fecha inicio --</option>';
+        fechaFinSelect.disabled = true;
+
+        if (totalMonto) totalMonto.textContent = "0.00 €";
+        if (horariosOcultos) horariosOcultos.innerHTML = "";
+
+        btnReservarModal.disabled = true;
+    }
+
+    function mostrarSinHorarios(
+        texto = "No hay horarios disponibles para esta plaza."
+    ) {
+        mensajeSinHorarios.textContent = texto;
+        mensajeSinHorarios.classList.remove("d-none");
+        selectoresHorario.classList.add("d-none");
+        btnReservarModal.disabled = true;
+    }
+
+    async function cargarPlazos(plazaId) {
+        const response = await fetch(
+            urlConId(urlPlazosBase, plazaId),
+            {
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Error HTTP ${response.status}`
+            );
+        }
+
+        const data = await response.json();
+        plazosDisponibles = data.plazos || [];
+        window._vehiculosUsuario = data.vehiculos || [];
+
+        if (!plazosDisponibles.length) {
+            mostrarSinHorarios();
+            return;
+        }
+
+        const fechas = [
+            ...new Set(
+                plazosDisponibles.map((plazo) => plazo.fecha)
+            ),
+        ];
+
+        fechaInicioSelect.innerHTML =
+            '<option value="">-- Selecciona fecha inicio --</option>';
+
+        fechas.forEach((fecha) => {
+            const option = document.createElement("option");
+            option.value = fecha;
+
+            const [year, month, day] = fecha.split("-");
+            option.textContent = new Date(
+                Number(year),
+                Number(month) - 1,
+                Number(day)
+            ).toLocaleDateString("es-ES");
+
+            fechaInicioSelect.appendChild(option);
+        });
+
+        if (vehiculoSelect && window._vehiculosUsuario.length > 0) {
+            vehiculoSelect.innerHTML = '<option value="">-- Selecciona vehículo --</option>';
+            window._vehiculosUsuario.forEach(v => {
+                const opt = document.createElement("option");
+                opt.value = v.id;
+                opt.textContent = `${v.marca} ${v.modelo} (${v.matricula})`;
+                vehiculoSelect.appendChild(opt);
+            });
+        }
+    }
+
+    function actualizarTotales() {
+        const fechaInicio = fechaInicioSelect.value;
+        const fechaFin = fechaFinSelect.value;
+
+        if (!fechaInicio || !fechaFin) {
+            if (totalMonto) totalMonto.textContent = "0.00 €";
+            if (horariosOcultos) horariosOcultos.innerHTML = "";
+            btnReservarModal.disabled = true;
+            return;
+        }
+
+        const d1 = new Date(fechaInicio);
+        const d2 = new Date(fechaFin);
+        
+        if (d2 < d1) {
+            alert("La fecha de fin no puede ser anterior a la fecha de inicio.");
+            fechaFinSelect.value = "";
+            return;
+        }
+
+        const diffTime = Math.abs(d2 - d1);
+        const dias = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        const precioDia = 15.00;
+        const total = dias * precioDia;
+
+        if (totalMonto) totalMonto.textContent = total.toFixed(2) + " €";
+
+        // Filtrar plazos que caen dentro del rango
+        const plazosRango = plazosDisponibles.filter(
+            (plazo) => plazo.fecha >= fechaInicio && plazo.fecha <= fechaFin
+        );
+
+        if (horariosOcultos) {
+            horariosOcultos.innerHTML = "";
+            plazosRango.forEach(p => {
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = "plazos_rango";
+                input.value = p.id;
+                horariosOcultos.appendChild(input);
+            });
+        }
+
+        btnReservarModal.disabled = plazosRango.length === 0 || !vehiculoSelect.value;
+    }
+
+    function actualizarFechaFin() {
+        const fechaInicio = fechaInicioSelect.value;
+
+        fechaFinSelect.innerHTML =
+            '<option value="">-- Selecciona fecha fin --</option>';
+
+        fechaFinSelect.disabled = true;
+        if (totalMonto) totalMonto.textContent = "0.00 €";
+        if (horariosOcultos) horariosOcultos.innerHTML = "";
+        btnReservarModal.disabled = true;
+
+        if (!fechaInicio) return;
+
+        const fechasValidas = [
+            ...new Set(
+                plazosDisponibles
+                    .map(p => p.fecha)
+            ),
+        ].sort();
+
+        fechasValidas.forEach((fecha) => {
+            if (fecha >= fechaInicio) {
+                const option = document.createElement("option");
+                option.value = fecha;
+
+                const [year, month, day] = fecha.split("-");
+                option.textContent = new Date(
+                    Number(year),
+                    Number(month) - 1,
+                    Number(day)
+                ).toLocaleDateString("es-ES");
+
+                fechaFinSelect.appendChild(option);
+            }
+        });
+
+        fechaFinSelect.disabled = fechaFinSelect.options.length <= 1;
+        actualizarTotales();
+    }
+
+    function reservarPlaza() {
+        if (!plazaSeleccionada) {
+            return;
+        }
+
+        const vehiculoId = vehiculoSelect ? vehiculoSelect.value : "";
+        const fechaInicio = fechaInicioSelect.value;
+        const fechaFin = fechaFinSelect.value;
 
         if (!vehiculoId) {
-            alert('Por favor, selecciona tu vehículo.');
+            alert("Por favor, selecciona un vehículo.");
             return;
         }
 
-        // Redirigir enviando vehículo y plazo mediante formulario temporal POST o URL GET
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/reserva/${plazoId}/`;
+        if (!fechaInicio || !fechaFin) {
+            alert("Por favor, selecciona el rango de fechas (inicio y fin).");
+            return;
+        }
 
-        const csrf = document.createElement('input');
-        csrf.type = 'hidden';
-        csrf.name = 'csrfmiddlewaretoken';
-        csrf.value = '{{ csrf_token }}';
+        const inputsPlazos = horariosOcultos.querySelectorAll("input[name='plazos_rango']");
+        if (!inputsPlazos || inputsPlazos.length === 0) {
+            alert("No hay plazos disponibles para las fechas seleccionadas.");
+            return;
+        }
+
+        const primerPlazoId = inputsPlazos[0].value;
+
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = urlConId(urlReservaBase, primerPlazoId);
+
+        const csrf = document.createElement("input");
+        csrf.type = "hidden";
+        csrf.name = "csrfmiddlewaretoken";
+        csrf.value = "{{ csrf_token }}";
         form.appendChild(csrf);
 
-        const vehInput = document.createElement('input');
-        vehInput.type = 'hidden';
-        vehInput.name = 'vehiculo';
+        const vehInput = document.createElement("input");
+        vehInput.type = "hidden";
+        vehInput.name = "vehiculo";
         vehInput.value = vehiculoId;
         form.appendChild(vehInput);
+
+        inputsPlazos.forEach(inp => {
+            const clone = inp.cloneNode(true);
+            form.appendChild(clone);
+        });
 
         document.body.appendChild(form);
         form.submit();
     }
 
-    // Inicializar al cargar con evento seguro por si el DOM ya está listo
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', inicializar);
-    } else {
-        inicializar();
+    nivelSelect.addEventListener("change", cambiarNivel);
+    if (fechaInicioSelect) {
+        fechaInicioSelect.addEventListener("change", () => {
+            actualizarFechaFin();
+            actualizarTotales();
+        });
     }
-</script>
+    if (fechaFinSelect) {
+        fechaFinSelect.addEventListener("change", actualizarTotales);
+    }
+    if (vehiculoSelect) {
+        vehiculoSelect.addEventListener("change", actualizarTotales);
+    }
 
+    horarioSelect.addEventListener("change", () => {
+        btnReservarModal.disabled = !horarioSelect.value;
+    });
+
+    btnReservarModal.addEventListener("click", reservarPlaza);
+
+    plazaModalElement.addEventListener("hidden.bs.modal", () => {
+        plazaSeleccionada = null;
+
+        document
+            .querySelectorAll(".plaza-btn")
+            .forEach((boton) => {
+                boton.classList.remove("seleccionada");
+            });
+
+        dibujarPlazas(nivelSelect.value);
+    });
+
+    cambiarNivel();
+});
+</script>
 {% endblock %}

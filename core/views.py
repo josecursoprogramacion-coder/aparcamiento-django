@@ -70,6 +70,16 @@ def crear_reserva(request, plazo_id=None):
         messages.error(request, 'Debes crear un perfil de cliente primero para poder reservar.')
         return redirect('crear_cliente')
 
+    # Limpiar reservas pendientes expiradas (> 5 minutos)
+    ahora = timezone.now()
+    expiradas = Reserva.objects.filter(estado='pendiente', expira_en__lt=ahora)
+    for exp in expiradas:
+        if exp.plazo:
+            exp.plazo.disponible = True
+            exp.plazo.save()
+        exp.estado = 'cancelada'
+        exp.save()
+
     plazo = None
     if plazo_id:
         plazo = get_object_or_404(Plazo, id=plazo_id, disponible=True)
@@ -80,14 +90,34 @@ def crear_reserva(request, plazo_id=None):
             selected_plazo = form.cleaned_data['plazo']
             selected_vehiculo = form.cleaned_data['vehiculo']
             try:
+                # Comprobar si ya hay una reserva pendiente activa para este plazo
+                pendiente_activa = Reserva.objects.filter(
+                    plazo=selected_plazo, 
+                    estado='pendiente', 
+                    expira_en__gt=timezone.now()
+                ).exists()
+
+                if pendiente_activa:
+                    messages.error(request, 'Esta plaza está siendo reservada por otro usuario en este momento. Inténtalo de nuevo en unos minutos.')
+                    return redirect('listar_plazas')
+
+                # Marcar plazo temporalmente como no disponible y crear reserva pendiente (5 mins)
+                selected_plazo.disponible = False
+                selected_plazo.save()
+
+                expiracion = timezone.now() + timedelta(minutes=5)
                 reserva = Reserva.objects.create(
                     cliente=cliente,
                     vehiculo=selected_vehiculo,
                     plazo=selected_plazo,
-                    estado='confirmada'
+                    estado='pendiente',
+                    expira_en=expiracion
                 )
-                selected_plazo.disponible = False
-                selected_plazo.save()
+                
+                # Simulamos o confirmamos la reserva de trámite
+                reserva.estado = 'confirmada'
+                reserva.save()
+
                 messages.success(request, '¡Reserva creada con éxito!')
                 return redirect('mis_reservas')
             except Exception as e:
@@ -98,6 +128,17 @@ def crear_reserva(request, plazo_id=None):
                     messages.error(request, f"{error}")
     else:
         form = ReservaForm(initial={'plazo': plazo} if plazo else None, user=request.user)
+        if plazo:
+            # Poner en trámite/pendiente por 5 minutos al iniciar el proceso de reserva
+            plazo.disponible = False
+            plazo.save()
+            expiracion = timezone.now() + timedelta(minutes=5)
+            Reserva.objects.create(
+                cliente=cliente,
+                plazo=plazo,
+                estado='pendiente',
+                expira_en=expiracion
+            )
 
     return render(request, 'core/crear_reserva.html', {'form': form, 'plazo': plazo})
 

@@ -63,12 +63,18 @@ class Reserva(models.Model):
     plazo = models.ForeignKey(Plazo, on_delete=models.CASCADE, related_name='reservas', null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    expira_en = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         ordering = ['-fecha_creacion']
     
     def __str__(self):
         return f"Reserva #{self.id} - {self.cliente} ({self.estado})"
+
+    def esta_expirada(self):
+        if self.estado == 'pendiente' and self.expira_en:
+            return timezone.now() > self.expira_en
+        return False
     
     def cancelar(self):
         """Método para cancelar la reserva y liberar el plazo"""

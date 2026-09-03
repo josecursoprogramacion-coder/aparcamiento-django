@@ -32,10 +32,12 @@
             <td>
                 {% if reserva.estado == 'confirmada' %}
                     <span class="badge bg-success">Confirmada</span>
+                {% elif reserva.estado == 'pendiente' %}
+                    <span class="badge bg-warning text-dark">Pendiente (En trámite)</span>
                 {% elif reserva.estado == 'cancelada' %}
                     <span class="badge bg-danger">Cancelada</span>
                 {% else %}
-                    <span class="badge bg-warning text-dark">{{ reserva.get_estado_display }}</span>
+                    <span class="badge bg-secondary">{{ reserva.get_estado_display }}</span>
                 {% endif %}
             </td>
             <td>

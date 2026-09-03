@@ -10,15 +10,29 @@
     <meta http-equiv="Expires" content="0">
     <h2 class="mb-3 text-center">🅿️ Selecciona tu Plaza</h2>
 
-    <!-- Filtro por Nivel -->
+    <!-- Filtro por Nivel y Fecha -->
     <div class="row mb-4 justify-content-center">
-        <div class="col-md-6 text-center">
+        <div class="col-md-4 text-center">
             <label for="nivelSelect" class="form-label fw-bold">Planta:</label>
             <select id="nivelSelect" class="form-select d-inline-block w-auto" onchange="cambiarNivel()">
                 {% for nivel in niveles %}
                 <option value="{{ nivel }}" {% if nivel == nivel_actual %}selected{% endif %}>{{ nivel }}</option>
                 {% endfor %}
             </select>
+        </div>
+        <div class="col-md-5 text-center">
+            <label for="filtroFecha" class="form-label fw-bold">📅 Filtrar por Día:</label>
+            <input type="date" id="filtroFecha" value="{{ fecha_actual }}" class="form-control d-inline-block w-auto" onchange="cambiarFechaFiltro()">
+            {% if fecha_actual %}
+                <div class="mt-1">
+                    <span class="badge bg-info text-dark">Mostrando estado para el día: <strong>{{ fecha_actual }}</strong></span>
+                    <a href="{% url 'mapa_plazas' %}?nivel={{ nivel_actual }}" class="btn btn-sm btn-outline-secondary ms-2 py-0">Quitar filtro</a>
+                </div>
+            {% else %}
+                <div class="mt-1">
+                    <span class="badge bg-secondary">Mostrando disponibilidad general (próx. 7 días)</span>
+                </div>
+            {% endif %}
         </div>
     </div>
 
@@ -91,15 +105,20 @@
 
                     <hr>
 
-                    <!-- Selector de Fecha y Horario -->
+                    <!-- Selector de Fecha, Horario y Vehículo -->
                     <div id="selectoresHorario">
                         <label for="fechaSelect" class="form-label fw-bold">Selecciona Fecha y Horario:</label>
                         <select id="fechaSelect" class="form-select mb-2" onchange="actualizarHorarios()">
                             <option value="">-- Selecciona --</option>
                         </select>
                         
-                        <select id="horarioSelect" class="form-select">
+                        <select id="horarioSelect" class="form-select mb-3">
                             <option value="">-- Selecciona Horario --</option>
+                        </select>
+
+                        <label for="vehiculoSelect" class="form-label fw-bold">Selecciona tu Vehículo:</label>
+                        <select id="vehiculoSelect" class="form-select">
+                            <option value="">-- Selecciona Vehículo --</option>
                         </select>
                     </div>
                 </div>
@@ -231,9 +250,27 @@
     function cambiarNivel() {
         const nivelSelect = document.getElementById('nivelSelect');
         const nivel = nivelSelect.value;
-        console.log("Cambiando a nivel:", nivel);
-        cargarPlano(nivel);
-        dibujarMarcadores(nivel);
+        const fechaInput = document.getElementById('filtroFecha');
+        const fecha = fechaInput ? fechaInput.value : '';
+        
+        let url = `/mapa/?nivel=${encodeURIComponent(nivel)}`;
+        if (fecha) {
+            url += `&fecha=${encodeURIComponent(fecha)}`;
+        }
+        window.location.href = url;
+    }
+
+    function cambiarFechaFiltro() {
+        const nivelSelect = document.getElementById('nivelSelect');
+        const nivel = nivelSelect.value;
+        const fechaInput = document.getElementById('filtroFecha');
+        const fecha = fechaInput.value;
+        
+        let url = `/mapa/?nivel=${encodeURIComponent(nivel)}`;
+        if (fecha) {
+            url += `&fecha=${encodeURIComponent(fecha)}`;
+        }
+        window.location.href = url;
     }
 
     // 6. Abrir modal con detalles
@@ -269,13 +306,25 @@
         new bootstrap.Modal(document.getElementById('plazaModal')).show();
     }
 
-    // 7. Cargar plazos disponibles (AJAX)
+    // 7. Cargar plazos disponibles y vehículos (AJAX)
     function cargarPlazos(plazaId) {
         fetch(`/plazos/${plazaId}/`)
             .then(response => response.json())
             .then(data => {
                 plazosDisponibles = data.plazos;
                 actualizarSelectores();
+                
+                // Rellenar vehículos
+                const vehiculoSelect = document.getElementById('vehiculoSelect');
+                vehiculoSelect.innerHTML = '<option value="">-- Selecciona Vehículo --</option>';
+                if (data.vehiculos && data.vehiculos.length > 0) {
+                    data.vehiculos.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = `${v.marca} ${v.modelo} (${v.matricula})`;
+                        vehiculoSelect.appendChild(opt);
+                    });
+                }
             })
             .catch(error => console.error('Error:', error));
     }
@@ -314,15 +363,39 @@
     // 9. Reservar plaza
     function reservarPlaza() {
         const horarioSelect = document.getElementById('horarioSelect');
+        const vehiculoSelect = document.getElementById('vehiculoSelect');
         const plazoId = horarioSelect.value;
+        const vehiculoId = vehiculoSelect.value;
 
         if (!plazoId) {
-            alert('Por favor, selecciona un horario.');
+            alert('Por favor, selecciona una fecha y horario.');
             return;
         }
 
-        // Redirigir a la vista de crear reserva
-        window.location.href = `/reserva/${plazoId}/`;
+        if (!vehiculoId) {
+            alert('Por favor, selecciona tu vehículo.');
+            return;
+        }
+
+        // Redirigir enviando vehículo y plazo mediante formulario temporal POST o URL GET
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/reserva/${plazoId}/`;
+
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrfmiddlewaretoken';
+        csrf.value = '{{ csrf_token }}';
+        form.appendChild(csrf);
+
+        const vehInput = document.createElement('input');
+        vehInput.type = 'hidden';
+        vehInput.name = 'vehiculo';
+        vehInput.value = vehiculoId;
+        form.appendChild(vehInput);
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
     // Inicializar al cargar con evento seguro por si el DOM ya está listo

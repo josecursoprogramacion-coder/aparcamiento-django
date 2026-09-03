@@ -31,4 +31,8 @@ urlpatterns = [
     # Autenticación
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+
+    #mapa plazas
+    path('mapa/', core_views.mapa_plazas, name='mapa_plazas'),
+    path('plazos/<int:plaza_id>/', core_views.obtener_plazos_plaza, name='obtener_plazos'),
 ]

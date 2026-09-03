@@ -1,27 +1,22 @@
 from django.contrib import admin
-from .models import Plaza, Reserva
+from .models import Plaza, Reserva, Plazo
 
 # Register your models here.
 
 
 @admin.register(Plaza)
 class PlazaAdmin(admin.ModelAdmin):
-    list_display = ('numero', 'tipo', 'precio', 'ocupada')
-    list_filter = ('tipo', 'ocupada')
-    search_fields = ('numero',)
-    actions = ['marcar_como_ocupada', 'marcar_como_libre']
-    
-    @admin.action(description="Marcar seleccionadas como ocupadas")
-    def marcar_como_ocupada(self, request, queryset):
-        queryset.update(ocupada=True)
-    
-    @admin.action(description="Marcar seleccionadas como libres")
-    def marcar_como_libre(self, request, queryset):
-        queryset.update(ocupada=False)
+    list_display = ['numero', 'nivel', 'pixel_x', 'pixel_y', 'activo']
+    list_filter = ['nivel', 'activo']
+    search_fields = ['numero']
+    fieldsets = (
+        ('Información', {'fields': ('numero', 'nivel', 'activo')}),
+        ('Posición en el Plano', {'fields': ('pixel_x', 'pixel_y', 'radio')}),
+    )
 
 @admin.register(Reserva)
 class ReservaAdmin(admin.ModelAdmin):
-    list_display = ('plaza', 'vehiculo', 'dia', 'fecha_creacion')
-    list_filter = ('dia', 'plaza__tipo')
-    search_fields = ('plaza__numero', 'vehiculo__matricula')
-    ordering = ['-dia']
+    list_display = ('cliente', 'plazo', 'estado', 'fecha_creacion')
+    list_filter = ('estado', 'fecha_creacion')
+    search_fields = ('cliente__usuario__username',)
+    ordering = ['-fecha_creacion']

@@ -114,3 +114,109 @@ def cancelar_reserva_admin(request, pk):
 def listar_reservas_admin(request):
     reservas = Reserva.objects.all().order_by('-dia')
     return render(request, 'core/listar_reservas_admin.html', {'reservas': reservas})
+
+#Vista para mostrar mapa interactivo de las plazas
+# core/views.py
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from .models import Plaza, Plazo, Reserva
+from django.db.models import Q
+from datetime import datetime, timedelta
+
+def mapa_plazas(request):
+    """
+    Vista del mapa interactivo con planos reales.
+    """
+    nivel = request.GET.get('nivel', 'Sótano 1')
+    
+    # Obtener todos los niveles disponibles
+    niveles = Plaza.objects.values_list('nivel', flat=True).distinct().order_by('nivel')
+    
+    # Obtener plazas del nivel seleccionado
+    plazas = Plaza.objects.filter(nivel=nivel)
+    
+    # Procesar estado de cada plaza
+    plazas_con_estado = []
+    
+    for plaza in plazas:
+        # Obtener plazos disponibles (próximos 7 días)
+        hoy = datetime.now().date()
+        plazos_futuros = Plazo.objects.filter(
+            plaza=plaza,
+            fecha__gte=hoy,
+            fecha__lt=hoy + timedelta(days=7)
+        )
+        
+        # Contar reservas activas
+        reservas_confirmadas = Reserva.objects.filter(
+            plazo__plaza=plaza,
+            estado='confirmada',
+            plazo__fecha__gte=hoy
+        ).count()
+        
+        reservas_pendientes = Reserva.objects.filter(
+            plazo__plaza=plaza,
+            estado='pendiente',
+            plazo__fecha__gte=hoy
+        ).count()
+        
+        # Determinar estado
+        if reservas_pendientes > 0:
+            estado = 'tramite'  # Azul
+        elif reservas_confirmadas > 0:
+            estado = 'ocupada'  # Rojo
+        else:
+            estado = 'libre'  # Verde
+        
+        # Obtener el precio del primer plazo disponible
+        precio = plazos_futuros.first().precio if plazos_futuros.exists() else 0.00
+        
+        plazas_con_estado.append({
+            'id': plaza.id,
+            'numero': plaza.numero,
+            'nivel': plaza.nivel,
+            'pixel_x': plaza.pixel_x,
+            'pixel_y': plaza.pixel_y,
+            'radio': plaza.radio,
+            'estado': estado,
+            'precio': float(precio),
+            'plazos_disponibles': plazos_futuros.count(),
+        })
+    
+    # Dimensiones de la imagen (ajusta según tu plano real)
+    imagen_width = 1200  # Ancho de la imagen en píxeles
+    imagen_height = 800  # Alto de la imagen en píxeles
+    
+    contexto = {
+        'plazas': plazas_con_estado,
+        'niveles': niveles,
+        'nivel_actual': nivel,
+        'imagen_width': imagen_width,
+        'imagen_height': imagen_height,
+    }
+    
+    return render(request, 'core/mapa_plazas.html', contexto)
+
+
+def obtener_plazos_plaza(request, plaza_id):
+    """
+    API AJAX para obtener los plazos disponibles de una plaza específica.
+    """
+    plaza = get_object_or_404(Plaza, id=plaza_id)
+    
+    hoy = datetime.now().date()
+    plazos = Plazo.objects.filter(
+        plaza=plaza,
+        fecha__gte=hoy,
+        fecha__lt=hoy + timedelta(days=7),
+        disponible=True
+    ).values('id', 'fecha', 'horario_desde', 'horario_hasta', 'precio')
+    
+    return JsonResponse({
+        'plaza': plaza.numero,
+        'nivel': plaza.nivel,
+        'plazos': list(plazos)
+    })
+    
+

@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block titulo %}Mapa de Plazas - Parking Catedral{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid py-4">
+    <h2 class="mb-3 text-center">🅿️ Selecciona tu Plaza</h2>
+
+    <!-- Filtro por Nivel -->
+    <div class="row mb-4 justify-content-center">
+        <div class="col-md-6 text-center">
+            <label for="nivelSelect" class="form-label fw-bold">Planta:</label>
+            <select id="nivelSelect" class="form-select d-inline-block w-auto" onchange="cambiarNivel()">
+                {% for nivel in niveles %}
+                <option value="{{ nivel }}" {% if nivel == nivel_actual %}selected{% endif %}>{{ nivel }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Leyenda -->
+    <div class="row mb-3 justify-content-center">
+        <div class="col-12 d-flex justify-content-center gap-4 flex-wrap">
+            <div class="d-flex align-items-center">
+                <span class="badge rounded-circle" style="background-color: #28a745; width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></span>
+                <strong>Libre</strong>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="badge rounded-circle" style="background-color: #dc3545; width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></span>
+                <strong>Reservada</strong>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="badge rounded-circle" style="background-color: #007bff; width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></span>
+                <strong>En Trámite</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor del Mapa con Imagen de Fondo -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div id="parking-map-container" style="position: relative; width: 100%; max-width: 1200px; margin: 0 auto; border: 2px solid #333; border-radius: 10px; overflow: hidden; background-color: #f5f5f5;">
+                
+                <!-- Imagen del Plano con ruta estática directa -->
+                <img id="planoImage" src="/static/img/planos/sotano1.jpg" alt="Plano del parking" style="width: 100%; height: auto; display: block;">
+                
+                <!-- Contenedor SVG para los marcadores -->
+                <svg id="marcadores-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                    <!-- Los marcadores se dibujarán aquí con JavaScript -->
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalles y Selección de Horario -->
+    <div class="modal fade" id="plazaModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Plaza <span id="modalNumero"></span> - <span id="modalNivel"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Estado:</strong> <span id="modalEstado"></span></p>
+                            <p><strong>Precio por hora:</strong> €<span id="modalPrecio"></span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Plazos disponibles (próx. 7 días):</strong> <span id="modalPlazosDisp" class="badge bg-info"></span></p>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Selector de Fecha y Horario -->
+                    <div id="selectoresHorario">
+                        <label for="fechaSelect" class="form-label fw-bold">Selecciona Fecha y Horario:</label>
+                        <select id="fechaSelect" class="form-select mb-2" onchange="actualizarHorarios()">
+                            <option value="">-- Selecciona --</option>
+                        </select>
+                        
+                        <select id="horarioSelect" class="form-select">
+                            <option value="">-- Selecciona Horario --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-success" id="btnReservarModal" onclick="reservarPlaza()">
+                        📅 Reservar Plaza
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // Variables globales
+    const plazasData = {{ plazas|safe }};
+    const imagenWidth = {{ imagen_width }};
+    const imagenHeight = {{ imagen_height }};
+    let plazaSeleccionada = null;
+    let plazosDisponibles = [];
+
+    // Mapeo de niveles a URLs estáticas directas asegurando la barra inicial
+    const nivelImagenes = {
+        'Sótano 1': '/static/img/planos/sotano1.jpg',
+        'Sótano 2': '/static/img/planos/sotano2.jpg',
+        'Planta 0': '/static/img/planos/planta0.jpg',
+        'Planta 1': '/static/img/planos/sotano1.jpg',
+    };
+
+    // 1. Inicializar
+    function inicializar() {
+        const nivelSelect = document.getElementById('nivelSelect');
+        const nivel = nivelSelect ? nivelSelect.value : 'Sótano 1';
+        console.log("Inicializando mapa con nivel:", nivel);
+        cargarPlano(nivel);
+        dibujarMarcadores(nivel);
+    }
+
+    // 2. Cargar la imagen del plano
+    function cargarPlano(nivel) {
+        const imagen = document.getElementById('planoImage');
+        const urlImg = nivelImagenes[nivel] || '/static/img/planos/sotano1.jpg';
+        console.log("Cargando imagen:", urlImg);
+        imagen.src = urlImg;
+    }
+
+    // 3. Dibujar marcadores en el SVG con forma de rectángulo
+    function dibujarMarcadores(nivel) {
+        const svg = document.getElementById('marcadores-svg');
+        svg.innerHTML = ''; // Limpiar
+
+        const plazasNivel = plazasData.filter(p => p.nivel === nivel);
+
+        plazasNivel.forEach(plaza => {
+            // Calcular posición y tamaño en porcentaje (ancho y alto del rectángulo)
+            const widthPct = 5.5;  // Ancho relativo del rectángulo
+            const heightPct = 3.5; // Alto relativo del rectángulo
+            const x = (plaza.pixel_x / imagenWidth) * 100 - (widthPct / 2);
+            const y = (plaza.pixel_y / imagenHeight) * 100 - (heightPct / 2);
+
+            // Crear rectángulo
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', `${x}%`);
+            rect.setAttribute('y', `${y}%`);
+            rect.setAttribute('width', `${widthPct}%`);
+            rect.setAttribute('height', `${heightPct}%`);
+            rect.setAttribute('rx', '4'); // Bordes redondeados
+            rect.setAttribute('ry', '4');
+            rect.setAttribute('fill', getColor(plaza.estado));
+            rect.setAttribute('stroke', '#fff');
+            rect.setAttribute('stroke-width', '1.5');
+            rect.setAttribute('opacity', '0.75');
+            rect.setAttribute('cursor', 'pointer');
+            rect.setAttribute('class', 'plaza-marker');
+
+            // Evento click
+            rect.addEventListener('click', () => abrirModalPlaza(plaza));
+
+            // Tooltip / Efecto Hover
+            rect.addEventListener('mouseover', (e) => {
+                rect.setAttribute('opacity', '0.95');
+                rect.setAttribute('stroke-width', '2.5');
+                text.setAttribute('font-size', '16');
+            });
+
+            rect.addEventListener('mouseout', (e) => {
+                rect.setAttribute('opacity', '0.75');
+                rect.setAttribute('stroke-width', '1.5');
+                text.setAttribute('font-size', '14');
+            });
+
+            svg.appendChild(rect);
+
+            // Crear texto con número centrado ENCAPSULADO Y ENCIMA del rectángulo
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', `${x + (widthPct / 2)}%`);
+            text.setAttribute('y`, `${y + (heightPct / 2)}%`);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('dominant-baseline', 'central');
+            text.setAttribute('font-size', '14');
+            text.setAttribute('font-weight', 'bold');
+            text.setAttribute('fill', '#ffffff');
+            text.setAttribute('stroke', '#000000');
+            text.setAttribute('stroke-width', '0.5px');
+            text.setAttribute('pointer-events', 'none');
+            text.textContent = plaza.numero;
+
+            svg.appendChild(text);
+        });
+    }
+
+    // 4. Obtener color según estado
+    function getColor(estado) {
+        switch(estado) {
+            case 'libre': return '#28a745';     // Verde
+            case 'ocupada': return '#dc3545';   // Rojo
+            case 'tramite': return '#007bff';   // Azul
+            default: return '#6c757d';
+        }
+    }
+
+    // 5. Cambiar nivel
+    function cambiarNivel() {
+        const nivel = document.getElementById('nivelSelect').value;
+        cargarPlano(nivel);
+        dibujarMarcadores(nivel);
+    }
+
+    // 6. Abrir modal con detalles
+    function abrirModalPlaza(plaza) {
+        plazaSeleccionada = plaza;
+
+        // Llenar datos en el modal
+        document.getElementById('modalNumero').textContent = plaza.numero;
+        document.getElementById('modalNivel').textContent = plaza.nivel;
+        document.getElementById('modalPrecio').textContent = plaza.precio.toFixed(2);
+        document.getElementById('modalPlazosDisp').textContent = plaza.plazos_disponibles;
+
+        const estadoTexto = {
+            'libre': '<span class="badge bg-success">Disponible</span>',
+            'ocupada': '<span class="badge bg-danger">Reservada</span>',
+            'tramite': '<span class="badge bg-primary">En Trámite</span>'
+        };
+        document.getElementById('modalEstado').innerHTML = estadoTexto[plaza.estado];
+
+        // Mostrar/ocultar selectores según estado
+        const selectores = document.getElementById('selectoresHorario');
+        const btnReservar = document.getElementById('btnReservarModal');
+
+        if (plaza.estado === 'libre') {
+            selectores.style.display = 'block';
+            btnReservar.style.display = 'inline-block';
+            cargarPlazos(plaza.id);
+        } else {
+            selectores.style.display = 'none';
+            btnReservar.style.display = 'none';
+        }
+
+        new bootstrap.Modal(document.getElementById('plazaModal')).show();
+    }
+
+    // 7. Cargar plazos disponibles (AJAX)
+    function cargarPlazos(plazaId) {
+        fetch(`/core/plazos/${plazaId}/`)
+            .then(response => response.json())
+            .then(data => {
+                plazosDisponibles = data.plazos;
+                actualizarSelectores();
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    // 8. Actualizar selectores de fecha y horario
+    function actualizarSelectores() {
+        const fechaSelect = document.getElementById('fechaSelect');
+        const fechasUnicas = [...new Set(plazosDisponibles.map(p => p.fecha))];
+
+        fechaSelect.innerHTML = '<option value="">-- Selecciona Fecha --</option>';
+        fechasUnicas.forEach(fecha => {
+            const option = document.createElement('option');
+            option.value = fecha;
+            option.textContent = new Date(fecha).toLocaleDateString('es-ES');
+            fechaSelect.appendChild(option);
+        });
+    }
+
+    function actualizarHorarios() {
+        const fechaSelect = document.getElementById('fechaSelect');
+        const horarioSelect = document.getElementById('horarioSelect');
+        const fechaSeleccionada = fechaSelect.value;
+
+        const horarios = plazosDisponibles.filter(p => p.fecha === fechaSeleccionada);
+
+        horarioSelect.innerHTML = '<option value="">-- Selecciona Horario --</option>';
+        horarios.forEach(horario => {
+            const option = document.createElement('option');
+            option.value = horario.id;
+            option.textContent = `${horario.horario_desde} - ${horario.horario_hasta} (€${horario.precio})`;
+            option.dataset.plazoid = horario.id;
+            horarioSelect.appendChild(option);
+        });
+    }
+
+    // 9. Reservar plaza
+    function reservarPlaza() {
+        const horarioSelect = document.getElementById('horarioSelect');
+        const plazoId = horarioSelect.value;
+
+        if (!plazoId) {
+            alert('Por favor, selecciona un horario.');
+            return;
+        }
+
+        // Redirigir a la vista de crear reserva
+        window.location.href = `/reserva/${plazoId}/`;
+    }
+
+    // Inicializar al cargar
+    document.addEventListener('DOMContentLoaded', inicializar);
+</script>
+
+{% endblock %}

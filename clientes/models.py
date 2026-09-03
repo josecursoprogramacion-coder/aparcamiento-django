@@ -46,7 +46,7 @@ class Reserva(models.Model):
         ('completada', 'Completada'),
     ]
     
-    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='reservas')
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='clientes_reservas')
     plaza = models.ForeignKey(Plaza, on_delete=models.CASCADE)
     fecha_inicio = models.DateTimeField()
     fecha_fin = models.DateTimeField()

@@ -13,8 +13,8 @@
             <th>Plaza</th>
             <th>Nivel</th>
             <th>Vehículo</th>
-            <th>Fecha</th>
-            <th>Horario</th>
+            <th>Fecha de Inicio</th>
+            <th>Fecha de Fin</th>
             <th>Precio</th>
             <th>Estado</th>
             <th>Acciones</th>
@@ -26,8 +26,8 @@
             <td>Plaza #{{ reserva.plazo.plaza.numero }}</td>
             <td>{{ reserva.plazo.plaza.nivel }}</td>
             <td>{% if reserva.vehiculo %}{{ reserva.vehiculo.marca }} {{ reserva.vehiculo.modelo }} ({{ reserva.vehiculo.matricula }}){% else %}-{% endif %}</td>
-            <td>{{ reserva.plazo.fecha }}</td>
-            <td>{{ reserva.plazo.horario_desde }} - {{ reserva.plazo.horario_hasta }}</td>
+            <td>{{ reserva.plazo.fecha_inicio }}</td>
+            <td>{{ reserva.plazo.fecha_fin }}</td>
             <td>{{ reserva.plazo.precio }} €</td>
             <td>
                 {% if reserva.estado == 'confirmada' %}

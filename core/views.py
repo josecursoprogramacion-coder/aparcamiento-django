@@ -5,9 +5,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from django.utils import timezone
+from django.db import transaction
 from .models import Plaza, Reserva, Plazo
 from .forms import ReservaForm, PlazaForm
 from clientes.decorators import establecimiento_required
+from django.http import JsonResponse
+from .models import Plaza, Plazo, Reserva
+from django.db.models import Q
+from datetime import datetime, timedelta
 
 @establecimiento_required
 def gestionar_plazas(request):
@@ -73,7 +78,7 @@ def crear_reserva(request, plazo_id=None):
 
     # Limpiar reservas pendientes expiradas (> 5 minutos)
     ahora = timezone.now()
-    expiradas = Reserva.objects.filter(estado='pendiente', expira_en__lt=ahora)
+    expiradas = Reserva.objects.filter(estado='pendiente', fecha_creacion__lt=ahora - timedelta(minutes=5))
     for exp in expiradas:
         if exp.plazo:
             exp.plazo.disponible = True
@@ -87,41 +92,79 @@ def crear_reserva(request, plazo_id=None):
 
     if request.method == 'POST':
         form = ReservaForm(request.POST, user=request.user)
-        if form.is_valid():
-            selected_plazo = form.cleaned_data['plazo']
-            selected_vehiculo = form.cleaned_data['vehiculo']
+        plazos_rango_ids = request.POST.getlist("plazos_rango")
+
+        if not plazos_rango_ids:
+            single_p = request.POST.get("plazo")
+            if single_p:
+                plazos_rango_ids = [single_p]
+
+        if form.is_valid() or plazos_rango_ids:
+            selected_vehiculo = form.cleaned_data.get("vehiculo")
+            if not selected_vehiculo and request.POST.get("vehiculo"):
+                try:
+                    selected_vehiculo = Vehiculo.objects.get(pk=request.POST.get("vehiculo"), cliente=cliente)
+                except Exception:
+                    pass
+
+            ids_a_reservar = [int(pid) for pid in plazos_rango_ids if pid.isdigit()]
+            if not ids_a_reservar and form.cleaned_data.get("plazo"):
+                ids_a_reservar = [form.cleaned_data["plazo"].pk]
+            elif not ids_a_reservar and plazo:
+                ids_a_reservar = [plazo.pk]
+
+            if not ids_a_reservar or not selected_vehiculo:
+                messages.error(request, "Debes seleccionar un vehículo y un rango de fechas válido.")
+                return redirect("mapa_plazas")
+
             try:
-                pendiente_activa = Reserva.objects.filter(
-                    plazo=selected_plazo, 
-                    estado='pendiente', 
-                    expira_en__gt=timezone.now()
-                ).exists()
+                with transaction.atomic():
+                    plazos_bloqueados = list(
+                        Plazo.objects
+                        .select_for_update()
+                        .select_related("plaza")
+                        .filter(pk__in=ids_a_reservar)
+                    )
 
-                if pendiente_activa:
-                    messages.error(request, 'Esta plaza está siendo reservada por otro usuario en este momento. Inténtalo de nuevo en unos minutos.')
-                    return redirect('listar_plazas')
+                    if len(plazos_bloqueados) != len(ids_a_reservar):
+                        raise ValueError("Algunos de los plazos seleccionados ya no existen.")
 
-                if selected_plazo:
-                    selected_plazo.disponible = False
-                    selected_plazo.save()
+                    for p_bloq in plazos_bloqueados:
+                        if not p_bloq.plaza.activo:
+                            raise ValueError("Una de las plazas seleccionadas no está activa.")
 
-                expiracion = timezone.now() + timedelta(minutes=5)
-                reserva = Reserva.objects.create(
-                    cliente=cliente,
-                    vehiculo=selected_vehiculo,
-                    plazo=selected_plazo,
-                    estado='pendiente',
-                    expira_en=expiracion
-                )
+                        existe_reserva_activa = Reserva.objects.filter(
+                            plazo=p_bloq,
+                            estado__in=["confirmada"],
+                        ).exists()
 
-                messages.success(request, '¡Reserva creada en trámite (pendiente)!')
-                return redirect('mis_reservas')
+                        if not p_bloq.disponible or existe_reserva_activa:
+                            raise ValueError(f"El día {p_bloq.fecha} ya ha sido reservado por otro usuario.")
+
+                    for p_bloq in plazos_bloqueados:
+                        Reserva.objects.create(
+                            cliente=cliente,
+                            vehiculo=selected_vehiculo,
+                            plazo=p_bloq,
+                            estado="confirmada",
+                        )
+                        p_bloq.disponible = False
+                        p_bloq.save(update_fields=["disponible"])
+
+                messages.success(request, "¡Reserva creada con éxito!")
+                return redirect("mis_reservas")
+
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect("mapa_plazas")
             except Exception as e:
                 messages.error(request, f"Error al guardar la reserva: {e}")
+                return redirect("mapa_plazas")
         else:
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{error}")
+            return redirect("mapa_plazas")
     else:
         initial_data = {}
         if plazo:
@@ -132,12 +175,10 @@ def crear_reserva(request, plazo_id=None):
             try:
                 plazo.disponible = False
                 plazo.save()
-                expiracion = timezone.now() + timedelta(minutes=5)
                 Reserva.objects.create(
                     cliente=cliente,
                     plazo=plazo,
-                    estado='pendiente',
-                    expira_en=expiracion
+                    estado='pendiente'
                 )
             except Exception:
                 pass
@@ -172,11 +213,7 @@ def listar_reservas_admin(request):
 #Vista para mostrar mapa interactivo de las plazas
 # core/views.py
 
-from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
-from .models import Plaza, Plazo, Reserva
-from django.db.models import Q
-from datetime import datetime, timedelta
+
 
 def mapa_plazas(request):
     """
@@ -200,34 +237,30 @@ def mapa_plazas(request):
     for plaza in plazas_todas:
         hoy = datetime.now().date()
         
-        # 1. Obtener plazos para la fecha seleccionada o por defecto
+        # 1. Obtener plazos para la fecha seleccionada o por defecto (usando fecha_inicio / fecha_fin)
         if filtro_fecha:
-            plazos_disponibles_qs = Plazo.objects.filter(plaza=plaza, fecha=filtro_fecha, disponible=True)
-            plazos_todos_qs = Plazo.objects.filter(plaza=plaza, fecha=filtro_fecha)
+            plazos_disponibles_qs = Plazo.objects.filter(plaza=plaza, fecha_inicio__lte=filtro_fecha, fecha_fin__gte=filtro_fecha, disponible=True)
+            plazos_todos_qs = Plazo.objects.filter(plaza=plaza, fecha_inicio__lte=filtro_fecha, fecha_fin__gte=filtro_fecha)
         else:
-            plazos_disponibles_qs = Plazo.objects.filter(plaza=plaza, fecha__gte=hoy, disponible=True)
-            plazos_todos_qs = Plazo.objects.filter(plaza=plaza, fecha__gte=hoy)
+            plazos_disponibles_qs = Plazo.objects.filter(plaza=plaza, fecha_fin__gte=hoy, disponible=True)
+            plazos_todos_qs = Plazo.objects.filter(plaza=plaza, fecha_fin__gte=hoy)
 
         # 2. Comprobar reservas confirmadas o en trámite para ese día/plazos
         if filtro_fecha:
             tiene_reserva = Reserva.objects.filter(
                 plazo__plaza=plaza,
-                plazo__fecha=filtro_fecha,
+                plazo__fecha_inicio__lte=filtro_fecha,
+                plazo__fecha_fin__gte=filtro_fecha,
                 estado__in=['confirmada', 'pendiente']
             ).exists()
         else:
-            # Si no hay fecha seleccionada, miramos si tiene alguna reserva en los próximos días o plazos ocupados
-            plazos_ocupados_ids = Plazo.objects.filter(plaza=plaza, fecha__gte=hoy, disponible=False).values_list('id', flat=True)
-            tiene_reserva = Reserva.objects.filter(
-                plazo__plaza=plaza,
-                plazo__in=plazos_ocupados_ids,
-                estado__in=['confirmada', 'pendiente']
-            ).exists() or not plazos_disponibles_qs.exists()
+            # Si no hay fecha seleccionada, la plaza está libre si tiene al menos un plazo disponible a futuro
+            tiene_reserva = not plazos_disponibles_qs.exists()
 
         # 3. Determinar el estado exacto de la plaza
         if not plazos_todos_qs.exists():
-            estado = 'ocupada' # Sin plazos definidos para ese día
-        elif tiene_reserva or not plazos_disponibles_qs.exists():
+            estado = 'ocupada'
+        elif tiene_reserva:
             estado = 'ocupada'
         else:
             estado = 'libre'
@@ -268,13 +301,22 @@ def obtener_plazos_plaza(request, plaza_id):
     plaza = get_object_or_404(Plaza, id=plaza_id)
     
     hoy = datetime.now().date()
-    plazos = Plazo.objects.filter(
+    plazos_qs = Plazo.objects.filter(
         plaza=plaza,
-        fecha__gte=hoy,
-        fecha__lt=hoy + timedelta(days=7),
+        fecha_fin__gte=hoy,
         disponible=True
-    ).values('id', 'fecha', 'horario_desde', 'horario_hasta', 'precio')
+    ).values('id', 'fecha_inicio', 'fecha_fin', 'precio')
     
+    plazos = []
+    for p in plazos_qs:
+        plazos.append({
+            'id': p['id'],
+            'fecha': p['fecha_inicio'].isoformat(),
+            'horario_desde': f"Del {p['fecha_inicio']} al {p['fecha_fin']}",
+            'horario_hasta': '',
+            'precio': float(p['precio'])
+        })
+
     vehiculos = []
     if request.user.is_authenticated and hasattr(request.user, 'cliente_perfil'):
         vehiculos = list(request.user.cliente_perfil.vehiculos.values('id', 'marca', 'modelo', 'matricula'))
@@ -282,7 +324,7 @@ def obtener_plazos_plaza(request, plaza_id):
     return JsonResponse({
         'plaza': plaza.numero,
         'nivel': plaza.nivel,
-        'plazos': list(plazos),
+        'plazos': plazos,
         'vehiculos': vehiculos
     })
     

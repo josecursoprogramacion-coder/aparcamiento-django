@@ -35,24 +35,29 @@ class Plaza(models.Model):
 
 class Plazo(models.Model):
     plaza = models.ForeignKey(Plaza, on_delete=models.CASCADE, related_name='plazos')
-    fecha = models.DateField()
-    horario_desde = models.TimeField()
-    horario_hasta = models.TimeField()
-    precio = models.DecimalField(max_digits=6, decimal_places=2)
+    fecha_inicio = models.DateField(null=True, blank=True, verbose_name="Fecha de inicio")
+    fecha_fin = models.DateField(null=True, blank=True, verbose_name="Fecha de fin")
+    precio = models.DecimalField(max_digits=6, decimal_places=2, default=15.00)
     disponible = models.BooleanField(default=True)
     
     class Meta:
-        ordering = ['plaza', 'fecha', 'horario_desde']
+        ordering = ['plaza', 'fecha_inicio']
         verbose_name = 'Plazo disponible'
         verbose_name_plural = 'Plazos disponibles'
     
     def __str__(self):
-        return f"{self.plaza} - {self.fecha} ({self.horario_desde}-{self.horario_hasta})"
+        return f"{self.plaza} - Del {self.fecha_inicio} al {self.fecha_fin} (€{self.precio})"
 
 
 class Reserva(models.Model):
     ESTADO_CHOICES = [
-        ('pendiente', 'Pendiente'),
+        ('confirmada', 'Confirmada'),
+        ('cancelada', 'Cancelada'),
+        ('completada', 'Completada'),
+    ]
+    
+class Reserva(models.Model):
+    ESTADO_CHOICES = [
         ('confirmada', 'Confirmada'),
         ('cancelada', 'Cancelada'),
         ('completada', 'Completada'),
@@ -60,20 +65,18 @@ class Reserva(models.Model):
     
     cliente = models.ForeignKey('clientes.Cliente', on_delete=models.CASCADE, related_name='reservas', null=True, blank=True)
     vehiculo = models.ForeignKey('clientes.Vehiculo', on_delete=models.CASCADE, null=True, blank=True)
-    plazo = models.ForeignKey(Plazo, on_delete=models.CASCADE, related_name='reservas', null=True, blank=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    plazo = models.ForeignKey(Plazo, on_delete=models.CASCADE, related_name='reservas', null=True, blank=True, verbose_name="Fecha de inicio de reserva")
+    fecha_fin = models.DateField(null=True, blank=True, verbose_name="Fecha de fin de reserva")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='confirmada')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
-    expira_en = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         ordering = ['-fecha_creacion']
     
     def __str__(self):
         return f"Reserva #{self.id} - {self.cliente} ({self.estado})"
-
+    
     def esta_expirada(self):
-        if self.estado == 'pendiente' and self.expira_en:
-            return timezone.now() > self.expira_en
         return False
     
     def cancelar(self):

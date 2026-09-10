@@ -4,8 +4,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from .models import Cliente, Reserva, Vehiculo
-from core.models import Plazo
+from .models import Cliente, Vehiculo
+from core.models import Plazo, Reserva
 from django.contrib import messages
 from .forms import ClienteForm, VehiculoForm, RegistroUsuarioForm, EditarUsuarioForm
 

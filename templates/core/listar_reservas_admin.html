@@ -8,7 +8,8 @@
             <th>Plaza</th>
             <th>Cliente</th>
             <th>Vehículo</th>
-            <th>Fecha</th>
+            <th>Fecha de Inicio</th>
+            <th>Fecha de Fin</th>
             <th>Acciones</th>
         </tr>
     </thead>
@@ -18,13 +19,14 @@
             <td>Plaza #{{ reserva.plazo.plaza.numero }} ({{ reserva.plazo.plaza.nivel }})</td>
             <td>{{ reserva.cliente.usuario.username }}</td>
             <td>{% if reserva.vehiculo %}{{ reserva.vehiculo.marca }} {{ reserva.vehiculo.modelo }} ({{ reserva.vehiculo.matricula }}){% else %}-{% endif %}</td>
-            <td>{{ reserva.plazo.fecha }} ({{ reserva.plazo.horario_desde }} - {{ reserva.plazo.horario_hasta }})</td>
+            <td>{{ reserva.plazo.fecha_inicio }}</td>
+            <td>{{ reserva.plazo.fecha_fin }}</td>
             <td>
                 <a href="{% url 'cancelar_reserva_admin' reserva.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Cancelar esta reserva?')">Cancelar</a>
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="text-center">No hay reservas registradas.</td></tr>
+        <tr><td colspan="6" class="text-center">No hay reservas registradas.</td></tr>
         {% endfor %}
     </tbody>
 </table>

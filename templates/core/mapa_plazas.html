@@ -105,21 +105,28 @@
 
                     <hr>
 
-                    <!-- Selector de Fecha, Horario y Vehículo -->
+                    <!-- Selector de Fecha de Inicio, Fecha de Fin y Vehículo -->
                     <div id="selectoresHorario">
-                        <label for="fechaSelect" class="form-label fw-bold">Selecciona Fecha y Horario:</label>
-                        <select id="fechaSelect" class="form-select mb-2" onchange="actualizarHorarios()">
-                            <option value="">-- Selecciona --</option>
-                        </select>
-                        
-                        <select id="horarioSelect" class="form-select mb-3">
-                            <option value="">-- Selecciona Horario --</option>
-                        </select>
+                        <div class="mb-3">
+                            <label for="fechaInicioSelect" class="form-label fw-bold">📅 Fecha de Inicio:</label>
+                            <select id="fechaInicioSelect" class="form-select" onchange="actualizarFechaFinModal()">
+                                <option value="">-- Selecciona fecha inicio --</option>
+                            </select>
+                        </div>
 
-                        <label for="vehiculoSelect" class="form-label fw-bold">Selecciona tu Vehículo:</label>
-                        <select id="vehiculoSelect" class="form-select">
-                            <option value="">-- Selecciona Vehículo --</option>
-                        </select>
+                        <div class="mb-3">
+                            <label for="fechaFinSelect" class="form-label fw-bold">📅 Fecha de Fin:</label>
+                            <select id="fechaFinSelect" class="form-select" disabled>
+                                <option value="">-- Selecciona primero fecha inicio --</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="vehiculoSelect" class="form-label fw-bold">🚗 Selecciona tu Vehículo:</label>
+                            <select id="vehiculoSelect" class="form-select">
+                                <option value="">-- Selecciona Vehículo --</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -329,46 +336,67 @@
             .catch(error => console.error('Error:', error));
     }
 
-    // 8. Actualizar selectores de fecha y horario
+    // 8. Actualizar selectores de fecha inicio, fin
     function actualizarSelectores() {
-        const fechaSelect = document.getElementById('fechaSelect');
-        const fechasUnicas = [...new Set(plazosDisponibles.map(p => p.fecha))];
+        const fechaInicioSelect = document.getElementById('fechaInicioSelect');
+        const fechasUnicas = [...new Set(plazosDisponibles.map(p => p.fecha))].sort();
 
-        fechaSelect.innerHTML = '<option value="">-- Selecciona Fecha --</option>';
+        fechaInicioSelect.innerHTML = '<option value="">-- Selecciona fecha inicio --</option>';
         fechasUnicas.forEach(fecha => {
             const option = document.createElement('option');
             option.value = fecha;
-            option.textContent = new Date(fecha).toLocaleDateString('es-ES');
-            fechaSelect.appendChild(option);
+            const [year, month, day] = fecha.split('-');
+            option.textContent = new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString('es-ES');
+            fechaInicioSelect.appendChild(option);
         });
     }
 
-    function actualizarHorarios() {
-        const fechaSelect = document.getElementById('fechaSelect');
-        const horarioSelect = document.getElementById('horarioSelect');
-        const fechaSeleccionada = fechaSelect.value;
+    function actualizarFechaFinModal() {
+        const fechaInicioSelect = document.getElementById('fechaInicioSelect');
+        const fechaFinSelect = document.getElementById('fechaFinSelect');
+        const fechaInicio = fechaInicioSelect.value;
 
-        const horarios = plazosDisponibles.filter(p => p.fecha === fechaSeleccionada);
+        fechaFinSelect.innerHTML = '<option value="">-- Selecciona fecha fin --</option>';
+        fechaFinSelect.disabled = true;
 
-        horarioSelect.innerHTML = '<option value="">-- Selecciona Horario --</option>';
-        horarios.forEach(horario => {
-            const option = document.createElement('option');
-            option.value = horario.id;
-            option.textContent = `${horario.horario_desde} - ${horario.horario_hasta} (€${horario.precio})`;
-            option.dataset.plazoid = horario.id;
-            horarioSelect.appendChild(option);
+        if (!fechaInicio) return;
+
+        const fechasValidas = [
+            ...new Set(
+                plazosDisponibles
+                    .map(p => p.fecha)
+            ),
+        ].sort();
+
+        fechasValidas.forEach((fecha) => {
+            if (fecha >= fechaInicio) {
+                const option = document.createElement("option");
+                option.value = fecha;
+                const [year, month, day] = fecha.split("-");
+                option.textContent = new Date(
+                    Number(year),
+                    Number(month) - 1,
+                    Number(day)
+                ).toLocaleDateString("es-ES");
+                fechaFinSelect.appendChild(option);
+            }
         });
+
+        fechaFinSelect.disabled = fechaFinSelect.options.length <= 1;
     }
 
-    // 9. Reservar plaza
+    // 9. Reservar plaza por rango de fechas
     function reservarPlaza() {
-        const horarioSelect = document.getElementById('horarioSelect');
+        const fechaInicioSelect = document.getElementById('fechaInicioSelect');
+        const fechaFinSelect = document.getElementById('fechaFinSelect');
         const vehiculoSelect = document.getElementById('vehiculoSelect');
-        const plazoId = horarioSelect.value;
-        const vehiculoId = vehiculoSelect.value;
 
-        if (!plazoId) {
-            alert('Por favor, selecciona una fecha y horario.');
+        const fechaInicio = fechaInicioSelect ? fechaInicioSelect.value : "";
+        const fechaFin = fechaFinSelect ? fechaFinSelect.value : "";
+        const vehiculoId = vehiculoSelect ? vehiculoSelect.value : "";
+
+        if (!fechaInicio || !fechaFin) {
+            alert('Por favor, selecciona las fechas de inicio y fin.');
             return;
         }
 
@@ -377,10 +405,21 @@
             return;
         }
 
-        // Redirigir enviando vehículo y plazo mediante formulario temporal POST o URL GET
+        // Filtrar plazos dentro del rango
+        const plazosRango = plazosDisponibles.filter(
+            (plazo) => plazo.fecha >= fechaInicio && plazo.fecha <= fechaFin
+        );
+
+        if (!plazosRango || plazosRango.length === 0) {
+            alert('No hay plazos disponibles para el rango de fechas seleccionado.');
+            return;
+        }
+
+        const primerPlazoId = plazosRango[0].id;
+
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `/reserva/${plazoId}/`;
+        form.action = `/reserva/${primerPlazoId}/`;
 
         const csrf = document.createElement('input');
         csrf.type = 'hidden';
@@ -393,6 +432,14 @@
         vehInput.name = 'vehiculo';
         vehInput.value = vehiculoId;
         form.appendChild(vehInput);
+
+        plazosRango.forEach(p => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'plazos_rango';
+            input.value = p.id;
+            form.appendChild(input);
+        });
 
         document.body.appendChild(form);
         form.submit();

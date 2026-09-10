@@ -14,9 +14,14 @@ class PlazaAdmin(admin.ModelAdmin):
         ('Posición en el Plano', {'fields': ('pixel_x', 'pixel_y', 'radio')}),
     )
 
+@admin.register(Plazo)
+class PlazoAdmin(admin.ModelAdmin):
+    list_display = ['plaza', 'fecha_inicio', 'fecha_fin', 'precio', 'disponible']
+    list_filter = ['fecha_inicio', 'disponible']
+
 @admin.register(Reserva)
 class ReservaAdmin(admin.ModelAdmin):
-    list_display = ('cliente', 'plazo', 'estado', 'fecha_creacion')
+    list_display = ('cliente', 'plazo', 'fecha_fin', 'estado', 'fecha_creacion')
     list_filter = ('estado', 'fecha_creacion')
     search_fields = ('cliente__usuario__username',)
     ordering = ['-fecha_creacion']

@@ -29,11 +29,43 @@ def gestionar_plazas(request):
     for plaza in plazas:
         plaza.is_ocupada = plaza.id in ocupadas_ids
 
+    # Estadísticas: reservas por plaza
+    reservas_por_plaza = []
+    for plaza in plazas:
+        count = Reserva.objects.filter(
+            plazo__plaza=plaza,
+            estado__in=['confirmada', 'completada']
+        ).count()
+        reservas_por_plaza.append({'numero': plaza.numero, 'nivel': plaza.nivel, 'count': count})
+
+    # Estadísticas: reservas por día (últimos 30 días)
+    reservas_por_dia = []
+    for i in range(29, -1, -1):
+        dia = hoy - timedelta(days=i)
+        count = Reserva.objects.filter(
+            plazo__fecha_inicio__lte=dia,
+            plazo__fecha_fin__gte=dia,
+            estado__in=['confirmada', 'completada']
+        ).count()
+        reservas_por_dia.append({'fecha': dia.strftime('%d/%m'), 'count': count})
+
+    # Reservas por nivel
+    reservas_por_nivel = {}
+    for nivel in ['Sótano 1', 'Sótano 2', 'Planta 0']:
+        count = Reserva.objects.filter(
+            plazo__plaza__nivel=nivel,
+            estado__in=['confirmada', 'completada']
+        ).count()
+        reservas_por_nivel[nivel] = count
+
     context = {
         'plazas': plazas,
         'libres_count': libres_count,
         'ocupadas_count': ocupadas_count,
         'total_count': total_count,
+        'reservas_por_plaza': reservas_por_plaza,
+        'reservas_por_dia': reservas_por_dia,
+        'reservas_por_nivel': reservas_por_nivel,
     }
     return render(request, 'core/gestionar_plazas.html', context)
 
@@ -139,29 +171,25 @@ def crear_reserva(request, plazo_id=None):
                         if not p_bloq.disponible or existe_reserva_activa:
                             raise ValueError(f"El día {p_bloq.fecha_inicio} ya ha sido reservado por otro usuario.")
 
-                    for i, p_bloq in enumerate(plazos_bloqueados):
-                        Reserva.objects.create(
-                            cliente=cliente,
-                            vehiculo=selected_vehiculo,
-                            plazo=p_bloq,
-                            estado="pendiente" if i == 0 else "confirmada",
-                        )
+                    for p_bloq in plazos_bloqueados:
                         p_bloq.disponible = False
                         p_bloq.save(update_fields=["disponible"])
 
-                # Redirigir al pago de la primera reserva
-                primera_reserva = Reserva.objects.filter(
-                    cliente=cliente,
-                    plazo__in=plazos_bloqueados,
-                    estado='pendiente'
-                ).first()
-                
-                if primera_reserva:
-                    messages.success(request, "¡Reserva creada! Ahora procede al pago.")
-                    return redirect("calcular_precio_y_pagar", reserva_id=primera_reserva.pk)
-                else:
-                    messages.success(request, "¡Reserva creada con éxito!")
-                    return redirect("mis_reservas")
+                    # Crear una sola reserva con el rango completo
+                    primer_plazo = plazos_bloqueados[0]
+                    ultimo_plazo = plazos_bloqueados[-1]
+                    precio_total = sum(p.precio for p in plazos_bloqueados)
+                    
+                    reserva = Reserva.objects.create(
+                        cliente=cliente,
+                        vehiculo=selected_vehiculo,
+                        plazo=primer_plazo,
+                        fecha_fin=ultimo_plazo.fecha_fin,
+                        estado="pendiente",
+                    )
+
+                messages.success(request, "¡Reserva creada! Ahora procede al pago.")
+                return redirect("calcular_precio_y_pagar", reserva_id=reserva.pk)
 
             except ValueError as exc:
                 messages.error(request, str(exc))
@@ -218,6 +246,25 @@ def cancelar_reserva_admin(request, pk):
 def listar_reservas_admin(request):
     reservas = Reserva.objects.exclude(estado='cancelada').order_by('-fecha_creacion')
     return render(request, 'core/listar_reservas_admin.html', {'reservas': reservas})
+
+@establecimiento_required
+def gestionar_reservas(request):
+    reservas = Reserva.objects.select_related('plazo__plaza', 'cliente', 'vehiculo', 'pago').order_by('-fecha_creacion')
+    
+    confirmadas = reservas.filter(estado='confirmada').count()
+    pendientes = reservas.filter(estado='pendiente').count()
+    canceladas = reservas.filter(estado='cancelada').count()
+    completadas = reservas.filter(estado='completada').count()
+    
+    context = {
+        'reservas': reservas,
+        'total_count': reservas.count(),
+        'confirmadas_count': confirmadas,
+        'pendientes_count': pendientes,
+        'canceladas_count': canceladas,
+        'completadas_count': completadas,
+    }
+    return render(request, 'core/gestionar_reservas.html', context)
 
 #Vista para mostrar mapa interactivo de las plazas
 # core/views.py

@@ -7,7 +7,7 @@ from django.conf import settings
 
 from .models import Pago
 from .services import StripeService
-from core.models import Reserva
+from core.models import Reserva, Plazo
 from clientes.decorators import cliente_required
 
 
@@ -16,7 +16,18 @@ from clientes.decorators import cliente_required
 def calcular_precio_y_pagar(request, reserva_id):
     """Calcula el precio y prepara el pago."""
     reserva = get_object_or_404(Reserva, pk=reserva_id, cliente=request.user.cliente_perfil)
-    monto = reserva.plazo.precio
+    
+    # Calcular precio total para multi-día
+    if reserva.fecha_fin and reserva.fecha_fin > reserva.plazo.fecha_inicio:
+        plazos_rango = Plazo.objects.filter(
+            plaza=reserva.plazo.plaza,
+            fecha_inicio__gte=reserva.plazo.fecha_inicio,
+            fecha_fin__lte=reserva.fecha_fin,
+            disponible=False
+        )
+        monto = sum(p.precio for p in plazos_rango)
+    else:
+        monto = reserva.plazo.precio
 
     pago, created = Pago.objects.get_or_create(
         reserva=reserva,

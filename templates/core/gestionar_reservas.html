@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block titulo %}Gestionar Reservas{% endblock %}
+{% block contenido %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>📋 Gestión de Reservas</h2>
+            <p class="text-muted mb-0">Administra reservas, realiza reembolsos y cancelaciones.</p>
+        </div>
+    </div>
+
+    <!-- Tarjetas de resumen -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white border-0 shadow-sm text-center p-3">
+                <h6>Total Reservas</h6>
+                <h3 class="fw-bold">{{ total_count }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white border-0 shadow-sm text-center p-3">
+                <h6>Confirmadas</h6>
+                <h3 class="fw-bold">{{ confirmadas_count }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark border-0 shadow-sm text-center p-3">
+                <h6>Pendientes</h6>
+                <h3 class="fw-bold">{{ pendientes_count }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white border-0 shadow-sm text-center p-3">
+                <h6>Canceladas</h6>
+                <h3 class="fw-bold">{{ canceladas_count }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de reservas -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Listado de Reservas</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Plaza</th>
+                            <th>Cliente</th>
+                            <th>Vehículo</th>
+                            <th>Fechas</th>
+                            <th>Estado</th>
+                            <th>Pago</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reserva in reservas %}
+                        <tr>
+                            <td class="fw-bold">{{ reserva.pk }}</td>
+                            <td>
+                                Plaza #{{ reserva.plazo.plaza.numero }}<br>
+                                <small class="text-muted">{{ reserva.plazo.plaza.nivel }}</small>
+                            </td>
+                            <td>{{ reserva.cliente.usuario.username }}</td>
+                            <td>
+                                {% if reserva.vehiculo %}
+                                    {{ reserva.vehiculo.marca }} {{ reserva.vehiculo.modelo }}<br>
+                                    <small class="text-muted">{{ reserva.vehiculo.matricula }}</small>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>
+                                <small>{{ reserva.plazo.fecha_inicio }}</small><br>
+                                <small>→ {% if reserva.fecha_fin %}{{ reserva.fecha_fin }}{% else %}{{ reserva.plazo.fecha_fin }}{% endif %}</small>
+                            </td>
+                            <td>
+                                {% if reserva.estado == 'confirmada' %}
+                                    <span class="badge bg-success">Confirmada</span>
+                                {% elif reserva.estado == 'pendiente' %}
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% elif reserva.estado == 'cancelada' %}
+                                    <span class="badge bg-danger">Cancelada</span>
+                                {% elif reserva.estado == 'completada' %}
+                                    <span class="badge bg-info">Completada</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ reserva.get_estado_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if reserva.pago %}
+                                    <span class="badge {% if reserva.pago.estado == 'completado' %}bg-success{% elif reserva.pago.estado == 'reembolsado' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                        {{ reserva.pago.get_estado_display }}
+                                    </span><br>
+                                    <small>{{ reserva.pago.monto }} €</small>
+                                {% else %}
+                                    <span class="text-muted">Sin pago</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    {% if reserva.estado != 'cancelada' %}
+                                        <a href="{% url 'cancelar_reserva_admin' reserva.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Cancelar esta reserva?')">
+                                            Cancelar
+                                        </a>
+                                    {% endif %}
+
+                                    {% if reserva.pago and reserva.pago.estado == 'completado' %}
+                                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#reembolsoModal{{ reserva.pago.id }}">
+                                            Reembolsar
+                                        </button>
+
+                                        <!-- Modal de Reembolso -->
+                                        <div class="modal fade" id="reembolsoModal{{ reserva.pago.id }}" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <form action="{% url 'reembolsar_pago' reserva.pago.id %}" method="POST">
+                                                        {% csrf_token %}
+                                                        <div class="modal-header bg-warning">
+                                                            <h5 class="modal-title">Reembolso - Pago #{{ reserva.pago.id }}</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <div class="alert alert-info">
+                                                                <strong>Plaza:</strong> #{{ reserva.plazo.plaza.numero }} ({{ reserva.plazo.plaza.nivel }})<br>
+                                                                <strong>Cliente:</strong> {{ reserva.cliente.usuario.username }}<br>
+                                                                <strong>Pago total:</strong> {{ reserva.pago.monto }} €<br>
+                                                                <strong>Reembolsable:</strong> {{ reserva.pago.reembolsable }} €
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label class="form-label fw-bold">Monto a reembolsar (€)</label>
+                                                                <input type="number" step="0.01" name="monto" class="form-control" value="{{ reserva.pago.reembolsable }}" min="0.01" max="{{ reserva.pago.reembolsable }}">
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label class="form-label fw-bold">Motivo</label>
+                                                                <select name="motivo" class="form-select">
+                                                                    <option value="requested_by_customer">Solicitado por el cliente</option>
+                                                                    <option value="duplicate">Duplicado</option>
+                                                                    <option value="fraudulent">Fraude</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                            <button type="submit" class="btn btn-warning" onclick="return confirm('¿Confirmar reembolso?')">
+                                                                Confirmar Reembolso
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if reserva.pago and reserva.pago.estado == 'reembolsado' %}
+                                        <span class="badge bg-success">Reembolsado</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">
+                                No hay reservas registradas.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

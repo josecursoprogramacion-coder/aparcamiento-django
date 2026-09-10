@@ -34,6 +34,43 @@
         </div>
     </div>
 
+    <!-- Gráficos de estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📊 Reservas por Plaza (Histórico)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartPorPlaza" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">🏗️ Reservas por Nivel</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartPorNivel" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">📈 Ocupación Diaria (Últimos 30 días)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartPorDia" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tabla detallada -->
     <div class="card shadow-sm">
         <div class="card-header bg-dark text-white">
@@ -47,6 +84,7 @@
                             <th>Número</th>
                             <th>Tipo</th>
                             <th>Precio (Día)</th>
+                            <th>Reservas</th>
                             <th>Estado Actual</th>
                         </tr>
                     </thead>
@@ -59,6 +97,13 @@
                             </td>
                             <td>15,00 €</td>
                             <td>
+                                {% for rp in reservas_por_plaza %}
+                                    {% if rp.numero == plaza.numero and rp.nivel == plaza.nivel %}
+                                        <span class="badge bg-primary">{{ rp.count }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td>
                                 {% if plaza.is_ocupada %}
                                     <span class="badge bg-danger px-3 py-2">Ocupada</span>
                                 {% else %}
@@ -68,7 +113,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="4" class="text-center py-4 text-muted">
+                            <td colspan="5" class="text-center py-4 text-muted">
                                 No hay plazas registradas todavía. ¡Añade una con el botón superior!
                             </td>
                         </tr>
@@ -79,4 +124,88 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Datos del servidor
+    const reservasPorPlaza = {{ reservas_por_plaza|safe }};
+    const reservasPorDia = {{ reservas_por_dia|safe }};
+    const reservasPorNivel = {{ reservas_por_nivel|safe }};
+
+    // 1. Gráfico de barras: Reservas por plaza
+    const ctxPlaza = document.getElementById('chartPorPlaza').getContext('2d');
+    new Chart(ctxPlaza, {
+        type: 'bar',
+        data: {
+            labels: reservasPorPlaza.map(p => `P${p.numero} (${p.nivel})`),
+            datasets: [{
+                label: 'Reservas',
+                data: reservasPorPlaza.map(p => p.count),
+                backgroundColor: reservasPorPlaza.map(p => p.count > 0 ? '#0d6efd' : '#dee2e6'),
+                borderColor: '#0d6efd',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                x: { ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } } }
+            }
+        }
+    });
+
+    // 2. Gráfico circular: Reservas por nivel
+    const ctxNivel = document.getElementById('chartPorNivel').getContext('2d');
+    const niveles = Object.keys(reservasPorNivel);
+    const colores = ['#0d6efd', '#198754', '#ffc107'];
+    new Chart(ctxNivel, {
+        type: 'doughnut',
+        data: {
+            labels: niveles,
+            datasets: [{
+                data: niveles.map(n => reservasPorNivel[n]),
+                backgroundColor: colores,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+
+    // 3. Gráfico de línea: Ocupación diaria
+    const ctxDia = document.getElementById('chartPorDia').getContext('2d');
+    new Chart(ctxDia, {
+        type: 'line',
+        data: {
+            labels: reservasPorDia.map(d => d.fecha),
+            datasets: [{
+                label: 'Plazas ocupadas',
+                data: reservasPorDia.map(d => d.count),
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+</script>
 {% endblock %}

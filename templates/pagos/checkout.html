@@ -10,7 +10,8 @@
       </div>
       <div class="card-body">
         <div class="alert alert-light border">
-          <strong>Plaza:</strong> Nº {{ reserva.plaza.numero }} | 
+          <strong>Plaza:</strong> Nº {{ reserva.plazo.plaza.numero }} | 
+          <strong>Planta:</strong> {{ reserva.plazo.plaza.nivel }}<br>
           <strong>Fechas:</strong> {{ reserva.plazo.fecha_inicio }} → {{ reserva.plazo.fecha_fin }}<br>
           <strong>Total:</strong> <span class="fs-3 fw-bold text-success">{{ pago.monto }} €</span>
         </div>

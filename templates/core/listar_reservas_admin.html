@@ -10,7 +10,8 @@
             <th>Vehículo</th>
             <th>Fecha de Inicio</th>
             <th>Fecha de Fin</th>
-            <th>Precio</th>
+            <th>Precio / Día</th>
+            <th>Total</th>
             <th>Acciones</th>
         </tr>
     </thead>
@@ -23,12 +24,13 @@
             <td>{{ reserva.plazo.fecha_inicio }}</td>
             <td>{{ reserva.plazo.fecha_fin }}</td>
             <td>{{ reserva.plazo.precio }} €</td>
+            <td><strong>{{ reserva.precio_total }} €</strong></td>
             <td>
                 <a href="{% url 'cancelar_reserva_admin' reserva.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Cancelar esta reserva?')">Cancelar</a>
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center">No hay reservas registradas.</td></tr>
+        <tr><td colspan="8" class="text-center">No hay reservas registradas.</td></tr>
         {% endfor %}
     </tbody>
 </table>

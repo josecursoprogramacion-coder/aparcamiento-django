@@ -80,3 +80,12 @@ class Reserva(models.Model):
             self.plazo.disponible = True
             self.plazo.save()
 
+    @property
+    def precio_total(self):
+        """Calcula el precio total según los días de reserva."""
+        if self.fecha_fin and self.plazo and self.plazo.fecha_inicio:
+            dias = (self.fecha_fin - self.plazo.fecha_inicio).days
+            if dias > 0:
+                return self.plazo.precio * dias
+        return self.plazo.precio if self.plazo else 0
+

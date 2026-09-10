@@ -49,12 +49,10 @@ def crear_plaza_admin(request):
         form = PlazaForm()
     
     return render(request, 'core/gestionar_plazas_crear.html', {'form': form})
-from clientes.models import Vehiculo
-from clientes.decorators import establecimiento_required
 
 # Vista para listar plazas disponibles
 def listar_plazas(request):
-    plazos = Plazo.objects.filter(disponible=True).order_by('fecha', 'horario_desde')
+    plazos = Plazo.objects.filter(disponible=True).select_related('plaza').order_by('plaza__nivel', 'plaza__numero', 'fecha_inicio')
     return render(request, 'core/listar_plazas.html', {'plazos': plazos})
 
 # Vista para ver mis reservas
@@ -139,20 +137,31 @@ def crear_reserva(request, plazo_id=None):
                         ).exists()
 
                         if not p_bloq.disponible or existe_reserva_activa:
-                            raise ValueError(f"El día {p_bloq.fecha} ya ha sido reservado por otro usuario.")
+                            raise ValueError(f"El día {p_bloq.fecha_inicio} ya ha sido reservado por otro usuario.")
 
-                    for p_bloq in plazos_bloqueados:
+                    for i, p_bloq in enumerate(plazos_bloqueados):
                         Reserva.objects.create(
                             cliente=cliente,
                             vehiculo=selected_vehiculo,
                             plazo=p_bloq,
-                            estado="confirmada",
+                            estado="pendiente" if i == 0 else "confirmada",
                         )
                         p_bloq.disponible = False
                         p_bloq.save(update_fields=["disponible"])
 
-                messages.success(request, "¡Reserva creada con éxito!")
-                return redirect("mis_reservas")
+                # Redirigir al pago de la primera reserva
+                primera_reserva = Reserva.objects.filter(
+                    cliente=cliente,
+                    plazo__in=plazos_bloqueados,
+                    estado='pendiente'
+                ).first()
+                
+                if primera_reserva:
+                    messages.success(request, "¡Reserva creada! Ahora procede al pago.")
+                    return redirect("calcular_precio_y_pagar", reserva_id=primera_reserva.pk)
+                else:
+                    messages.success(request, "¡Reserva creada con éxito!")
+                    return redirect("mis_reservas")
 
             except ValueError as exc:
                 messages.error(request, str(exc))

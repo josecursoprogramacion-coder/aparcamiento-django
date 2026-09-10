@@ -41,10 +41,13 @@
                 {% endif %}
             </td>
             <td>
-                {% if reserva.estado != 'cancelada' %}
+                {% if reserva.estado == 'pendiente' %}
+                    <a href="{% url 'calcular_precio_y_pagar' reserva.pk %}" class="btn btn-sm btn-success">Pagar</a>
+                    <a href="{% url 'cancelar_reserva_cliente' reserva.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Cancelar esta reserva pendiente?')">Cancelar</a>
+                {% elif reserva.estado == 'confirmada' %}
                     <a href="{% url 'cancelar_reserva_cliente' reserva.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de que deseas cancelar tu reserva?')">Cancelar</a>
                 {% else %}
-                    <span class="text-muted">Cancelada</span>
+                    <span class="text-muted">-</span>
                 {% endif %}
             </td>
         </tr>

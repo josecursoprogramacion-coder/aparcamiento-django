@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block titulo %}Resultado del Pago{% endblock %}
+
+{% block contenido %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card shadow-sm text-center p-4">
+      {% if pago.estado == 'completado' %}
+        <div class="display-3 text-success">✅</div>
+        <h3 class="text-success">¡Pago realizado!</h3>
+        <p>Tu reserva de la Plaza {{ pago.reserva.plaza.numero }} está confirmada.</p>
+      {% elif pago.estado == 'procesando' %}
+        <div class="display-3 text-warning">⏳</div>
+        <h3 class="text-warning">Pago en proceso</h3>
+        <p>Confirma el pago en tu app bancaria.</p>
+        <div class="spinner-border text-warning"></div>
+      {% else %}
+        <div class="display-3 text-danger">❌</div>
+        <h3 class="text-danger">Pago no completado</h3>
+        <p>{{ pago.stripe_error_message|default:"Inténtalo de nuevo." }}</p>
+        <a href="{% url 'calcular_precio_y_pagar' pago.reserva.id %}" class="btn btn-primary">Reintentar</a>
+      {% endif %}
+      <hr>
+      <table class="table table-sm text-start">
+        <tr><th>Método</th><td>{{ pago.get_metodo_pago_display }}</td></tr>
+        <tr><th>Importe</th><td>{{ pago.monto }} €</td></tr>
+        <tr><th>Estado</th><td><span class="badge bg-secondary">{{ pago.get_estado_display }}</span></td></tr>
+      </table>
+      <a href="{% url 'mis_reservas' %}" class="btn btn-outline-primary w-100">Ver mis reservas</a>
+    </div>
+  </div>
+</div>
+{% if pago.estado == 'procesando' %}
+<script>setTimeout(() => location.reload(), 5000);</script>
+{% endif %}
+{% endblock %}

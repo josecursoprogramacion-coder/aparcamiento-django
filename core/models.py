@@ -56,13 +56,6 @@ class Reserva(models.Model):
         ('completada', 'Completada'),
     ]
     
-class Reserva(models.Model):
-    ESTADO_CHOICES = [
-        ('confirmada', 'Confirmada'),
-        ('cancelada', 'Cancelada'),
-        ('completada', 'Completada'),
-    ]
-    
     cliente = models.ForeignKey('clientes.Cliente', on_delete=models.CASCADE, related_name='reservas', null=True, blank=True)
     vehiculo = models.ForeignKey('clientes.Vehiculo', on_delete=models.CASCADE, null=True, blank=True)
     plazo = models.ForeignKey(Plazo, on_delete=models.CASCADE, related_name='reservas', null=True, blank=True, verbose_name="Fecha de inicio de reserva")

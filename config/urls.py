@@ -22,6 +22,9 @@ from core import views as core_views
 
 
 urlpatterns = [
+    #ruta a inicio
+    path('', clientes_views.inicio, name='inicio'), 
+
     # Rutas de las apps antes del admin para evitar que admin interceptes URL personalizados de administrador
     path('', include('clientes.urls')),
     path('', include('core.urls')),
@@ -35,4 +38,7 @@ urlpatterns = [
     #mapa plazas
     path('mapa/', core_views.mapa_plazas, name='mapa_plazas'),
     path('plazos/<int:plaza_id>/', core_views.obtener_plazos_plaza, name='obtener_plazos'),
+
+    #pasarela pagos
+    path('pagos/', include('pagos.urls')),
 ]

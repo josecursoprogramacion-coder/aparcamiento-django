@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block titulo %}Pagar Reserva{% endblock %}
+
+{% block contenido %}
+<div class="row justify-content-center">
+  <div class="col-md-7 col-lg-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white py-3">
+        <h5 class="mb-0">💳 Método de pago</h5>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-light border">
+          <strong>Plaza:</strong> Nº {{ reserva.plaza.numero }} | 
+          <strong>Fechas:</strong> {{ reserva.plazo.fecha_inicio }} → {{ reserva.plazo.fecha_fin }}<br>
+          <strong>Total:</strong> <span class="fs-3 fw-bold text-success">{{ pago.monto }} €</span>
+        </div>
+
+        <form id="payment-form">
+          <div id="payment-element"></div>
+          <div id="card-errors" class="text-danger mt-2 fw-bold"></div>
+          <button id="submit-button" class="btn btn-success btn-lg w-100 mt-3" type="submit">
+            Pagar {{ pago.monto }} €
+          </button>
+        </form>
+        <a href="{% url 'mis_reservas' %}" class="btn btn-outline-secondary w-100 mt-2">Cancelar</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+  const stripe = Stripe('{{ STRIPE_PUBLIC_KEY }}');
+  const form = document.getElementById('payment-form');
+  const submitButton = document.getElementById('submit-button');
+  const cardErrors = document.getElementById('card-errors');
+  let elements = null;
+
+  async function initCheckout() {
+    const resp = await fetch("{% url 'iniciar_pago' pago.id %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    });
+    const data = await resp.json();
+    if (data.error) { cardErrors.textContent = data.error; return; }
+
+    elements = stripe.elements({ 
+      clientSecret: data.client_secret,
+      appearance: {
+        theme: 'stripe',
+        variables: {
+          colorPrimary: '#0570de',
+          colorBackground: '#ffffff',
+          colorText: '#30313d',
+          colorDanger: '#df1b41',
+          fontFamily: 'Ideal Sans, system-ui, sans-serif',
+          borderRadius: '8px',
+        }
+      }
+    });
+    
+    const paymentElement = elements.create('payment', {
+      layout: 'tabs',
+      paymentMethodOrder: ['card', 'bizum']
+    });
+    paymentElement.mount('#payment-element');
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+    const { error } = await stripe.confirmPayment({ elements, confirmParams: { return_url: window.location.origin + "{% url 'pago_resultado' pago.id %}" } });
+    if (error) { cardErrors.textContent = error.message; submitButton.disabled = false; submitButton.textContent = 'Pagar {{ pago.monto }} €'; }
+  });
+
+  function getCookie(name) {
+    let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+  initCheckout();
+</script>
+{% endblock %}

@@ -362,6 +362,7 @@ def crear_reserva_cliente(request):
                     plazo=plazo,
                     fecha_fin=fecha_fi,
                     estado='pendiente',
+                    creado_por=request.user,
                 )
                 
                 messages.success(request, f"Reserva creada para {cliente_username}. Redirigiendo al pago...")
@@ -373,6 +374,28 @@ def crear_reserva_cliente(request):
     
     return render(request, 'core/crear_reserva_cliente.html', {'plazas': plazas})
 
+
+@establecimiento_required
+def reservas_hotel(request):
+    """Vista para que el personal del hotel vea todas las reservas que han creado."""
+    reservas = Reserva.objects.filter(
+        creado_por=request.user
+    ).select_related('cliente', 'vehiculo', 'plazo', 'plazo__plaza').order_by('-fecha_creacion')
+    
+    total = reservas.count()
+    pendientes = reservas.filter(estado='pendiente').count()
+    confirmadas = reservas.filter(estado='confirmada').count()
+    completadas = reservas.filter(estado='completada').count()
+    canceladas = reservas.filter(estado='cancelada').count()
+    
+    return render(request, 'core/reservas_hotel.html', {
+        'reservas': reservas,
+        'total': total,
+        'pendientes': pendientes,
+        'confirmadas': confirmadas,
+        'completadas': completadas,
+        'canceladas': canceladas,
+    })
 
 
 def mapa_plazas(request):

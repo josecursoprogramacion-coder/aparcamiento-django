@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load filtros_personalizados %}
 {% block titulo %}Resultado del Pago{% endblock %}
 
 {% block contenido %}
@@ -26,7 +27,7 @@
         <tr><th>Importe</th><td>{{ pago.monto }} €</td></tr>
         <tr><th>Estado</th><td><span class="badge bg-secondary">{{ pago.get_estado_display }}</span></td></tr>
       </table>
-      <a href="{% url 'mis_reservas' %}" class="btn btn-outline-primary w-100">Ver mis reservas</a>
+      <a href="{% if user|is_establecimiento or user.is_superuser %}{% url 'reservas_hotel' %}{% else %}{% url 'mis_reservas' %}{% endif %}" class="btn btn-outline-primary w-100">Ver mis reservas</a>
     </div>
   </div>
 </div>

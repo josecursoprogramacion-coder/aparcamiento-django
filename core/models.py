@@ -54,14 +54,16 @@ class Reserva(models.Model):
         ('confirmada', 'Confirmada'),
         ('cancelada', 'Cancelada'),
         ('completada', 'Completada'),
+        ('pendiente', 'Pendiente'),
     ]
     
     cliente = models.ForeignKey('clientes.Cliente', on_delete=models.CASCADE, related_name='reservas', null=True, blank=True)
     vehiculo = models.ForeignKey('clientes.Vehiculo', on_delete=models.CASCADE, null=True, blank=True)
     plazo = models.ForeignKey(Plazo, on_delete=models.CASCADE, related_name='reservas', null=True, blank=True, verbose_name="Fecha de inicio de reserva")
     fecha_fin = models.DateField(null=True, blank=True, verbose_name="Fecha de fin de reserva")
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='confirmada')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    creado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='reservas_creadas')
     
     class Meta:
         ordering = ['-fecha_creacion']

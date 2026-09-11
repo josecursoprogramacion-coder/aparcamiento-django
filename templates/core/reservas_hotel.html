@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Mis Reservas - Hotel{% endblock %}
+
+{% block contenido %}
+<div class="container mt-4">
+    <h2>🏨 Mis Reservas Creadas</h2>
+    <p class="text-muted">Todas las reservas que has creado para clientes del hotel.</p>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body text-center">
+                    <h3>{{ total }}</h3>
+                    <p class="mb-0">Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body text-center">
+                    <h3>{{ pendientes }}</h3>
+                    <p class="mb-0">Pendientes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body text-center">
+                    <h3>{{ confirmadas }}</h3>
+                    <p class="mb-0">Confirmadas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary">
+                <div class="card-body text-center">
+                    <h3>{{ completadas }}</h3>
+                    <p class="mb-0">Completadas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Lista de Reservas</h5>
+            <a href="{% url 'crear_reserva_cliente' %}" class="btn btn-primary btn-sm">+ Nueva Reserva</a>
+        </div>
+        <div class="card-body">
+            {% if reservas %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Vehículo</th>
+                            <th>Plaza</th>
+                            <th>Fecha Inicio</th>
+                            <th>Fecha Fin</th>
+                            <th>Estado</th>
+                            <th>Precio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reserva in reservas %}
+                        <tr>
+                            <td>{{ reserva.id }}</td>
+                            <td>
+                                <strong>{{ reserva.cliente.usuario.first_name }} {{ reserva.cliente.usuario.last_name }}</strong>
+                                <br><small class="text-muted">{{ reserva.cliente.usuario.username }}</small>
+                            </td>
+                            <td>
+                                {{ reserva.vehiculo.marca }} {{ reserva.vehiculo.modelo }}
+                                <br><small class="text-muted">{{ reserva.vehiculo.matricula }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ reserva.plazo.plaza.numero }}</span>
+                                {{ reserva.plazo.plaza.nivel }}
+                            </td>
+                            <td>{{ reserva.plazo.fecha_inicio|date:"d/m/Y" }}</td>
+                            <td>{{ reserva.fecha_fin|date:"d/m/Y" }}</td>
+                            <td>
+                                {% if reserva.estado == 'pendiente' %}
+                                    <span class="badge bg-warning">Pendiente</span>
+                                {% elif reserva.estado == 'confirmada' %}
+                                    <span class="badge bg-success">Confirmada</span>
+                                {% elif reserva.estado == 'completada' %}
+                                    <span class="badge bg-secondary">Completada</span>
+                                {% elif reserva.estado == 'cancelada' %}
+                                    <span class="badge bg-danger">Cancelada</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ reserva.precio_total }}€</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <p class="text-muted mb-3">Aún no has creado ninguna reserva.</p>
+                <a href="{% url 'crear_reserva_cliente' %}" class="btn btn-primary">+ Crear primera reserva</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

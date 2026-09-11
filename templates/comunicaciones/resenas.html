@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Mis Reseñas{% endblock %}
+
+{% block contenido %}
+<div class="container mt-4">
+    <h2>⭐ Mis Reseñas</h2>
+    <p class="text-muted">Historial de valoraciones realizadas.</p>
+    
+    {% for resena in resenas %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">{{ resena.rating }} ⭐</h5>
+            <p class="card-text">{{ resena.comentario|default:"Sin comentario" }}</p>
+            <small class="text-muted">{{ resena.fecha_creacion }}</small>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info">
+        Aún no has escrito ninguna reseña. ¡Valora nuestro servicio desde el chat!
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

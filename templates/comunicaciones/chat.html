@@ -1,0 +1,418 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Chat - Comunicaciones{% endblock %}
+
+{% block contenido %}
+<style>
+    .chatbot-container {
+        max-width: 700px;
+        margin: 40px auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        overflow: hidden;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    
+    .chat-tabs {
+        display: flex;
+        background: #e0e0e0;
+    }
+    
+    .chat-tab {
+        flex: 1;
+        padding: 15px;
+        text-align: center;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+        border: none;
+        background: transparent;
+        color: #666;
+    }
+    
+    .chat-tab.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .chat-tab:not(.active):hover {
+        background: #d0d0d0;
+    }
+    
+    .tab-content {
+        display: none;
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+    
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        text-align: center;
+    }
+    
+    .chat-header h2 {
+        font-size: 1.8em;
+        margin-bottom: 8px;
+    }
+    
+    .chat-messages {
+        padding: 25px;
+        max-height: 500px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .message {
+        max-width: 80%;
+        padding: 15px 20px;
+        border-radius: 18px;
+        line-height: 1.5;
+        position: relative;
+    }
+    
+    .message.bot {
+        align-self: flex-start;
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-left: 5px solid #667eea;
+    }
+    
+    .message.user {
+        align-self: flex-end;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    
+    .message-content {
+        white-space: pre-wrap;
+    }
+    
+    .message-link {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 10px 15px;
+        background: #28a745;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    
+    .quick-buttons {
+        padding: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+        justify-content: center;
+    }
+    
+    .quick-btn {
+        padding: 12px 20px;
+        background: white;
+        border: 2px solid #667eea;
+        color: #667eea;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .quick-btn:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    .input-container {
+        padding: 20px;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        gap: 10px;
+    }
+    
+    .chat-input {
+        flex: 1;
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 25px;
+        font-size: 1em;
+        outline: none;
+    }
+    
+    .chat-input:focus {
+        border-color: #667eea;
+    }
+    
+    .send-btn {
+        padding: 15px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .send-btn:hover {
+        transform: scale(1.05);
+    }
+    
+    .locked-message {
+        padding: 40px;
+        text-align: center;
+        color: #666;
+    }
+    
+    .locked-message .icon {
+        font-size: 3em;
+        margin-bottom: 15px;
+    }
+</style>
+
+<div class="chatbot-container">
+    <div class="chat-tabs">
+        <button class="chat-tab active" onclick="switchTab('parking')">🅿️ Parking</button>
+        <button class="chat-tab" onclick="switchTab('comunicaciones')">💬 Comunicaciones</button>
+    </div>
+    
+    <div id="tab-parking" class="tab-content active">
+        <div class="chat-header">
+            <h2>🅿️ Servicio de Parking</h2>
+            <p>Taquilla en Calle La Hoz | Parking en Cardenal Landazuri 21</p>
+        </div>
+        
+        {% if tiene_reserva_pagada %}
+        <div class="chat-messages" id="chatParkingMessages">
+            <div class="message bot">
+                <div class="message-content">👋 ¡Bienvenido! Veo que tienes una reserva confirmada.
+
+📍 PASO 1 – Cómo llegar a la taquilla:
+
+🗺️ Pulsa este enlace y Google Maps te llevará hasta la taquilla:
+
+👉 <a href="https://www.google.com/maps/dir/?api=1&destination=42.5982,-5.5686&travelmode=driving" target="_blank" class="message-link">📍 Ver enlace de Maps</a>
+
+📌 La taquilla está en: Calle La Hoz, León
+
+Cuando llegues, pulsa el botón de abajo para recibir tu código de apertura.</div>
+            </div>
+        </div>
+        
+        <div class="quick-buttons" id="parkingButtons">
+            <button class="quick-btn" onclick="sendMessageParking('codigo')">🔑 Ya estoy en la taquilla, dame el código</button>
+            <button class="quick-btn" onclick="sendMessageParking('parking')">🅿️ Ya tengo el mando, llévame al parking</button>
+            <button class="quick-btn" onclick="reiniciarChatParking()">🔄 Reiniciar</button>
+        </div>
+        
+        <div class="input-container">
+            <input type="text" class="chat-input" id="chatParkingInput" placeholder="Escribe tu mensaje..." autocomplete="off">
+            <button class="send-btn" onclick="sendMessageParking(document.getElementById('chatParkingInput').value)">Enviar</button>
+        </div>
+        {% else %}
+        <div class="locked-message">
+            <div class="icon">🔒</div>
+            <h3>Zona restringida</h3>
+            <p>Esta sección solo está disponible para clientes con reserva confirmada y pagada.</p>
+            <p>Primero debes realizar una reserva en el mapa de plazas.</p>
+            <a href="{% url 'mapa_plazas' %}" class="quick-btn" style="display:inline-block; margin-top:15px;">🗺️ Ir al mapa de plazas</a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div id="tab-comunicaciones" class="tab-content">
+        <div class="chat-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <h2>💬 Comunicaciones</h2>
+            <p>Contacto, opiniones y más</p>
+        </div>
+        
+        <div class="chat-messages" id="chatComunicacionesMessages">
+            <div class="message bot">
+                <div class="message-content">👋 ¡Hola! ¿En qué podemos ayudarte?
+
+• 📧 Contacto con soporte
+• ⭐ Dejar una reseña o valoración
+• 📋 Ver opinions de otros clientes
+• ℹ️ Información sobre el servicio</div>
+            </div>
+        </div>
+        
+        <div class="quick-buttons" id="comunicacionesButtons">
+            <button class="quick-btn" onclick="sendMessageComunicaciones('contacto')">📧 Contacto</button>
+            <button class="quick-btn" onclick="sendMessageComunicaciones('resena')">⭐ Dejar reseña</button>
+            <button class="quick-btn" onclick="sendMessageComunicaciones('opiniones')">👀 Ver opiniones</button>
+            <button class="quick-btn" onclick="reiniciarChatComunicaciones()">🔄 Reiniciar</button>
+        </div>
+        
+        <div class="input-container">
+            <input type="text" class="chat-input" id="chatComunicacionesInput" placeholder="Escribe tu mensaje..." autocomplete="off">
+            <button class="send-btn" onclick="sendMessageComunicaciones(document.getElementById('chatComunicacionesInput').value)">Enviar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchTab(tab) {
+        document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        
+        if (tab === 'parking') {
+            document.querySelector('.chat-tab:first-child').classList.add('active');
+            document.getElementById('tab-parking').classList.add('active');
+        } else {
+            document.querySelector('.chat-tab:last-child').classList.add('active');
+            document.getElementById('tab-comunicaciones').classList.add('active');
+        }
+    }
+    
+    function sendMessageParking(text) {
+        if (!text.trim()) return;
+        
+        const messagesDiv = document.getElementById('chatParkingMessages');
+        const input = document.getElementById('chatParkingInput');
+        
+        const userMsg = document.createElement('div');
+        userMsg.className = 'message user';
+        userMsg.innerHTML = `<div class="message-content">${text}</div>`;
+        messagesDiv.appendChild(userMsg);
+        
+        input.value = '';
+        
+        fetch('{% url "procesar_mensaje" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ mensaje: text, seccion: 'parking' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const botMsg = document.createElement('div');
+            botMsg.className = 'message bot';
+            botMsg.innerHTML = `<div class="message-content">${data.respuesta.replace(/\n/g, '<br>')}</div>`;
+            
+            if (data.respuesta.includes('http')) {
+                const linkDiv = document.createElement('div');
+                linkDiv.style.marginTop = '10px';
+                const link = data.respuesta.match(/https?:\/\/[^\s]+/);
+                if (link) {
+                    linkDiv.innerHTML = `<a href="${link[0]}" target="_blank" class="message-link">📍 Ver en Google Maps</a>`;
+                    botMsg.appendChild(linkDiv);
+                }
+            }
+            
+            messagesDiv.appendChild(botMsg);
+            actualizarBotonesParking(data.botones);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            if (data.abrir_url) {
+                window.open(data.abrir_url, '_blank');
+            }
+        });
+    }
+    
+    function sendMessageComunicaciones(text) {
+        if (!text.trim()) return;
+        
+        const messagesDiv = document.getElementById('chatComunicacionesMessages');
+        const input = document.getElementById('chatComunicacionesInput');
+        
+        const userMsg = document.createElement('div');
+        userMsg.className = 'message user';
+        userMsg.innerHTML = `<div class="message-content">${text}</div>`;
+        messagesDiv.appendChild(userMsg);
+        
+        input.value = '';
+        
+        fetch('{% url "procesar_mensaje" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ mensaje: text, seccion: 'comunicaciones' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const botMsg = document.createElement('div');
+            botMsg.className = 'message bot';
+            botMsg.innerHTML = `<div class="message-content">${data.respuesta.replace(/\n/g, '<br>')}</div>`;
+            
+            messagesDiv.appendChild(botMsg);
+            actualizarBotonesComunicaciones(data.botones);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            if (data.abrir_url) {
+                window.open(data.abrir_url, '_blank');
+            }
+        });
+    }
+    
+    function actualizarBotonesParking(botones) {
+        const container = document.getElementById('parkingButtons');
+        container.innerHTML = '';
+        
+        if (botones && botones.length > 0) {
+            botones.forEach(btn => {
+                const button = document.createElement('button');
+                button.className = 'quick-btn';
+                button.textContent = btn.texto;
+                button.onclick = () => sendMessageParking(btn.comando);
+                container.appendChild(button);
+            });
+        }
+        
+        const reiniciarBtn = document.createElement('button');
+        reiniciarBtn.className = 'quick-btn';
+        reiniciarBtn.textContent = '🔄 Reiniciar';
+        reiniciarBtn.onclick = reiniciarChatParking;
+        container.appendChild(reiniciarBtn);
+    }
+    
+    function actualizarBotonesComunicaciones(botones) {
+        const container = document.getElementById('comunicacionesButtons');
+        container.innerHTML = '';
+        
+        if (botones && botones.length > 0) {
+            botones.forEach(btn => {
+                const button = document.createElement('button');
+                button.className = 'quick-btn';
+                button.textContent = btn.texto;
+                button.onclick = () => sendMessageComunicaciones(btn.comando);
+                container.appendChild(button);
+            });
+        }
+        
+        const reiniciarBtn = document.createElement('button');
+        reiniciarBtn.className = 'quick-btn';
+        reiniciarBtn.textContent = '🔄 Reiniciar';
+        reiniciarBtn.onclick = reiniciarChatComunicaciones;
+        container.appendChild(reiniciarBtn);
+    }
+    
+    function reiniciarChatParking() {
+        const messagesDiv = document.getElementById('chatParkingMessages');
+        messagesDiv.innerHTML = '';
+        sendMessageParking('empezar');
+    }
+    
+    function reiniciarChatComunicaciones() {
+        const messagesDiv = document.getElementById('chatComunicacionesMessages');
+        messagesDiv.innerHTML = '';
+        sendMessageComunicaciones('hola');
+    }
+</script>
+{% endblock %}

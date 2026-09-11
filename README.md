@@ -173,6 +173,32 @@ Seleccionar plaza → Crear reserva (pendiente) → Checkout Stripe
 - **Cancelar** reservas activas
 - **Reembolsar** pagos (total o parcial) con selección de motivo
 
+### Gestionar Pagos (`/admin/pagos/`)
+- Lista de pagos con estado y método
+- **Reembolsar** pagos (total o parcial) con generación de `stripe.refund.id`
+- Filtros por fecha, método de pago y estado
+
+## 🤖 Sistema de Agentes y Metodología RIPER-5
+
+Este proyecto utiliza el **sistema de agentes vibecode** para el desarrollo guiado por especificaciones. La estructura se encuentra en los directorios `process/` y `.claude/`:
+
+- **`process/context/`**: Contexto duradero del repositorio (`all-context.md`, `all-tests.md`, y grupos de contexto).
+- **`process/general-plans/`** y **`process/features/`**: Almacenamiento de planes, reportes y referencias por features.
+- **`.claude/agents/`** y **`.claude/skills/`**: Agentes y skills especializados (research, innovate, plan, execute, debugger, tester, code-simplifier, etc.).
+- **Metodología RIPER-5**: Flujo faseado (RESEARCH → INNOVATE → PLAN → EXECUTE → UPDATE PROCESS) para asegurar calidad y documentación en cada etapa.
+- **Herramientas clave**: `vc-setup` (scaffolding), `vc-generate-plan` (planes implementables), `vc-audit-vc` (auditoría de salud del harness), `vc-update` / `vc-publish` (actualización y publicación del kit).
+
+## 📁 Estructura de Carpetas del Harness
+
+```text
+process/
+  _seeds/                 -- Plantillas seed (referencia, nunca modificadas)
+  context/                -- Contexto duradero (all-context.md es el router raíz)
+  development-protocols/  -- Metodología RIPER-5 y protocolos del proyecto
+  general-plans/          -- Planes transversales (active/completed/backlog)
+  features/               -- Almacenamiento feature-scoped (core-plazas-y-reservas, clientes-y-vehiculos)
+```
+
 ---
 
 ## 🧪 Pruebas

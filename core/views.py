@@ -266,8 +266,112 @@ def gestionar_reservas(request):
     }
     return render(request, 'core/gestionar_reservas.html', context)
 
-#Vista para mostrar mapa interactivo de las plazas
-# core/views.py
+@establecimiento_required
+def crear_reserva_cliente(request):
+    """Vista para que el personal del hotel cree reservas para sus clientes."""
+    from clientes.models import Cliente, Vehiculo
+    from django.contrib.auth.models import User
+    
+    plazas = Plaza.objects.filter(activo=True).order_by('nivel', 'numero')
+    
+    if request.method == 'POST':
+        # Datos del cliente
+        cliente_username = request.POST.get('cliente_username', '').strip()
+        cliente_nombre = request.POST.get('cliente_nombre', '').strip()
+        cliente_apellido = request.POST.get('cliente_apellido', '').strip()
+        cliente_email = request.POST.get('cliente_email', '').strip()
+        cliente_telefono = request.POST.get('cliente_telefono', '').strip()
+        cliente_nif = request.POST.get('cliente_nif', '').strip()
+        
+        # Datos del vehículo
+        vehiculo_marca = request.POST.get('vehiculo_marca', '').strip()
+        vehiculo_modelo = request.POST.get('vehiculo_modelo', '').strip()
+        vehiculo_matricula = request.POST.get('vehiculo_matricula', '').strip()
+        vehiculo_color = request.POST.get('vehiculo_color', '').strip()
+        
+        # Datos de la reserva
+        plaza_id = request.POST.get('plaza')
+        fecha_inicio = request.POST.get('fecha_inicio')
+        fecha_fin = request.POST.get('fecha_fin')
+        
+        if not all([cliente_username, cliente_nombre, vehiculo_marca, vehiculo_modelo, vehiculo_matricula, plaza_id, fecha_inicio, fecha_fin]):
+            messages.error(request, f"Faltan campos obligatorios. Plaza: {plaza_id}, Inicio: {fecha_inicio}, Fin: {fecha_fin}")
+            return redirect('crear_reserva_cliente')
+        
+        try:
+            with transaction.atomic():
+                # Buscar o crear cliente
+                user, created = User.objects.get_or_create(
+                    username=cliente_username,
+                    defaults={
+                        'first_name': cliente_nombre,
+                        'last_name': cliente_apellido,
+                        'email': cliente_email,
+                    }
+                )
+                
+                cliente, _ = Cliente.objects.get_or_create(
+                    usuario=user,
+                    defaults={
+                        'telefono': cliente_telefono,
+                    }
+                )
+                
+                # Crear vehículo
+                vehiculo, _ = Vehiculo.objects.get_or_create(
+                    cliente=cliente,
+                    matricula=vehiculo_matricula,
+                    defaults={
+                        'marca': vehiculo_marca,
+                        'modelo': vehiculo_modelo,
+                        'color': vehiculo_color,
+                    }
+                )
+                
+                # Crear plazos del rango de fechas
+                plaza = Plaza.objects.get(id=plaza_id)
+                fecha_ini = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+                fecha_fi = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                
+                # Buscar un solo plazo disponible para esa plaza en esa fecha
+                plazo = Plazo.objects.filter(
+                    plaza=plaza,
+                    fecha_inicio=fecha_ini,
+                    disponible=True
+                ).first()
+                
+                if not plazo:
+                    # Si no hay plazo exacto, buscar cualquiera disponible
+                    plazo = Plazo.objects.filter(
+                        plaza=plaza,
+                        disponible=True
+                    ).first()
+                
+                if not plazo:
+                    messages.error(request, "No hay plazos disponibles para esa plaza.")
+                    return redirect('crear_reserva_cliente')
+                
+                # Marcar plazo como no disponible
+                plazo.disponible = False
+                plazo.save(update_fields=['disponible'])
+                
+                # Crear reserva
+                reserva = Reserva.objects.create(
+                    cliente=cliente,
+                    vehiculo=vehiculo,
+                    plazo=plazo,
+                    fecha_fin=fecha_fi,
+                    estado='pendiente',
+                )
+                
+                messages.success(request, f"Reserva creada para {cliente_username}. Redirigiendo al pago...")
+                return redirect('calcular_precio_y_pagar', reserva_id=reserva.pk)
+                
+        except Exception as e:
+            messages.error(request, f"Error al crear la reserva: {str(e)}")
+            return redirect('crear_reserva_cliente')
+    
+    return render(request, 'core/crear_reserva_cliente.html', {'plazas': plazas})
 
 
 

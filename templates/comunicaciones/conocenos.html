@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Conócenos{% endblock %}
+
+{% block contenido %}
+<style>
+    .conocenos-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 60px 40px;
+        border-radius: 20px;
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    
+    .hero-section h1 {
+        font-size: 2.5em;
+        margin-bottom: 20px;
+    }
+    
+    .hero-section p {
+        font-size: 1.2em;
+        opacity: 0.9;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+    
+    .info-card {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .info-card .icon {
+        font-size: 3em;
+        margin-bottom: 15px;
+    }
+    
+    .info-card h3 {
+        color: #667eea;
+        margin-bottom: 10px;
+    }
+    
+    .locations-section {
+        background: white;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 40px;
+    }
+    
+    .locations-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-top: 30px;
+    }
+    
+    .location-card {
+        padding: 25px;
+        border-radius: 15px;
+        background: #f8f9fa;
+    }
+    
+    .location-card h4 {
+        color: #667eea;
+        margin-bottom: 15px;
+    }
+    
+    .team-section {
+        background: white;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .team-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 30px;
+        margin-top: 30px;
+    }
+    
+    .team-member {
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .team-member .avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        font-size: 2.5em;
+        color: white;
+    }
+    
+    .contact-info {
+        margin-top: 30px;
+        padding: 25px;
+        background: #f8f9fa;
+        border-radius: 15px;
+        text-align: center;
+    }
+    
+    .reviews-section {
+        background: white;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .review-card {
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        border-left: 4px solid #667eea;
+    }
+    
+    .review-stars {
+        color: #ffc107;
+        font-size: 1.2em;
+    }
+    
+    .review-author {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 5px;
+    }
+</style>
+
+<div class="conocenos-container">
+    <div class="hero-section">
+        <h1>🏨 Conócenos</h1>
+        <p>Somos tu solución de aparcamiento en León con servicio personalizado y tecnología moderna.</p>
+    </div>
+    
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="icon">🚗</div>
+            <h3>30 Plazas</h3>
+            <p>Plazas de aparcamiento disponibles en 3 niveles con acceso seguro.</p>
+        </div>
+        <div class="info-card">
+            <div class="icon">🔒</div>
+            <h3>Seguridad 24h</h3>
+            <p>Sistema de taquilla con código de apertura único para cada cliente.</p>
+        </div>
+        <div class="info-card">
+            <div class="icon">📱</div>
+            <h3>Tecnología</h3>
+            <p>Reservas online, pago con Tarjeta y Bizum, y chatbot de asistencia.</p>
+        </div>
+    </div>
+    
+    <div class="locations-section">
+        <h2 style="text-align:center; color:#667eea;">📍 Nuestras Ubicaciones</h2>
+        <div class="locations-grid">
+            <div class="location-card">
+                <h4>🔑 Taquilla de Recogida</h4>
+                <p><strong>Dirección:</strong> Calle La Hoz, León</p>
+                <p><strong>Horario:</strong> 24 horas</p>
+                <p><strong>Función:</strong> Recoger el mando del parking con código de 4 dígitos.</p>
+            </div>
+            <div class="location-card">
+                <h4>🅿️ Parking</h4>
+                <p><strong>Dirección:</strong> Calle Cardenal Landazuri 21, León</p>
+                <p><strong>Capacidad:</strong> 30 plazas</p>
+                <p><strong>Acceso:</strong> Con mando remoto de la taquilla.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="team-section">
+        <h2 style="text-align:center; color:#667eea;">👥 Nuestro Equipo</h2>
+        <div class="team-grid">
+            <div class="team-member">
+                <div class="avatar">👨‍💼</div>
+                <h4>Gestión</h4>
+                <p class="text-muted">Administración y gestión de plazas.</p>
+            </div>
+            <div class="team-member">
+                <div class="avatar">👩‍💻</div>
+                <h4>Tecnología</h4>
+                <p class="text-muted">Sistema de reservas y pagos online.</p>
+            </div>
+            <div class="team-member">
+                <div class="avatar">🎧</div>
+                <h4>Atención al Cliente</h4>
+                <p class="text-muted">Chatbot y soporte 24 horas.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="reviews-section">
+        <h2 style="text-align:center; color:#667eea; margin-bottom: 30px;">⭐ Opiniones de Nuestros Clientes</h2>
+        
+        {% if resenas %}
+            {% for resena in resenas %}
+            <div class="review-card">
+                <div class="review-stars">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= resena.rating %}⭐{% endif %}
+                    {% endfor %}
+                </div>
+                <p style="margin: 10px 0;">{{ resena.comentario|default:"Sin comentario" }}</p>
+                <div class="review-author">
+                    — {{ resena.user.first_name|default:resena.user.username }} | {{ resena.fecha_creacion|date:"d/m/Y" }}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="text-align: center; color: #666;">Aún no hay opiniones. Sé el primero en valorar nuestro servicio.</p>
+        {% endif %}
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="{% url 'chat_view' %}" class="btn btn-primary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                ⭐ Dejar mi opinión
+            </a>
+        </div>
+    </div>
+    
+    <div class="contact-info">
+        <h3 style="color:#667eea; margin-bottom: 15px;">📧 Contacto</h3>
+        <p><strong>Teléfono:</strong> 987 654 321</p>
+        <p><strong>Email:</strong> info@aparcamiento-leon.com</p>
+        <p><strong>Horario:</strong> Atención 24 horas</p>
+        <a href="{% url 'contacto' %}" class="btn btn-primary mt-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+            📋 Ir al Formulario de Contacto
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -41,4 +41,7 @@ urlpatterns = [
 
     #pasarela pagos
     path('pagos/', include('pagos.urls')),
+    
+    #comunicaciones
+    path('comunicaciones/', include('comunicaciones.urls')),
 ]

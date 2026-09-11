@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block titulo %}Nueva Reserva para Cliente{% endblock %}
+{% block contenido %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>📝 Nueva Reserva para Cliente</h2>
+            <p class="text-muted mb-0">Crea una reserva introduciendo los datos del cliente y su vehículo.</p>
+        </div>
+        <a href="{% url 'gestionar_reservas' %}" class="btn btn-outline-secondary">← Volver</a>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        
+        <!-- Datos del Cliente -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">👤 Datos del Cliente</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Username *</label>
+                        <input type="text" name="cliente_username" class="form-control" required placeholder="ej: juan123">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Nombre *</label>
+                        <input type="text" name="cliente_nombre" class="form-control" required placeholder="Juan">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Apellido</label>
+                        <input type="text" name="cliente_apellido" class="form-control" placeholder="García">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" name="cliente_email" class="form-control" placeholder="juan@email.com">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Teléfono</label>
+                        <input type="text" name="cliente_telefono" class="form-control" placeholder="612 345 678">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datos del Vehículo -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">🚗 Datos del Vehículo</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Marca *</label>
+                        <input type="text" name="vehiculo_marca" class="form-control" required placeholder="Seat">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Modelo *</label>
+                        <input type="text" name="vehiculo_modelo" class="form-control" required placeholder="Toledo">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Matrícula *</label>
+                        <input type="text" name="vehiculo_matricula" class="form-control" required placeholder="1930FTJ">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Color</label>
+                        <input type="text" name="vehiculo_color" class="form-control" placeholder="Blanco">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datos de la Reserva -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">🅿️ Seleccionar Plaza y Fechas</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Plaza *</label>
+                        <select name="plaza" class="form-select" required>
+                            <option value="">-- Seleccionar plaza --</option>
+                            {% for plaza in plazas %}
+                                <option value="{{ plaza.id }}">Plaza #{{ plaza.numero }} ({{ plaza.nivel }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Fecha Inicio *</label>
+                        <input type="date" name="fecha_inicio" class="form-control" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Fecha Fin *</label>
+                        <input type="date" name="fecha_fin" class="form-control" required>
+                    </div>
+                </div>
+                <div class="alert alert-info mb-0">
+                    <strong>Precio:</strong> 15,00 € / día
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success btn-lg">
+                ✅ Crear Reserva
+            </button>
+            <a href="{% url 'gestionar_reservas' %}" class="btn btn-outline-secondary btn-lg">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

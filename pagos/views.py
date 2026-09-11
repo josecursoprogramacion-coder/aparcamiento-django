@@ -12,10 +12,13 @@ from clientes.decorators import cliente_required
 
 
 @login_required
-@cliente_required
 def calcular_precio_y_pagar(request, reserva_id):
     """Calcula el precio y prepara el pago."""
-    reserva = get_object_or_404(Reserva, pk=reserva_id, cliente=request.user.cliente_perfil)
+    # Permitir acceso al cliente dueño de la reserva O a establecimientos
+    if request.user.groups.filter(name='Establecimientos').exists() or request.user.is_superuser:
+        reserva = get_object_or_404(Reserva, pk=reserva_id)
+    else:
+        reserva = get_object_or_404(Reserva, pk=reserva_id, cliente=request.user.cliente_perfil)
     
     # Calcular precio total para multi-día
     if reserva.fecha_fin and reserva.fecha_fin > reserva.plazo.fecha_inicio:
@@ -31,7 +34,7 @@ def calcular_precio_y_pagar(request, reserva_id):
 
     pago, created = Pago.objects.get_or_create(
         reserva=reserva,
-        defaults={'usuario': request.user, 'monto': monto, 'moneda': 'EUR'}
+        defaults={'usuario': reserva.cliente.usuario, 'monto': monto, 'moneda': 'EUR'}
     )
 
     if pago.estado == 'completado':
@@ -42,11 +45,12 @@ def calcular_precio_y_pagar(request, reserva_id):
 
 
 @login_required
-@cliente_required
-@require_POST
 def iniciar_pago(request, pago_id):
     """Crea el PaymentIntent y devuelve el client_secret."""
-    pago = get_object_or_404(Pago, pk=pago_id, usuario=request.user)
+    if request.user.groups.filter(name='Establecimientos').exists() or request.user.is_superuser:
+        pago = get_object_or_404(Pago, pk=pago_id)
+    else:
+        pago = get_object_or_404(Pago, pk=pago_id, usuario=request.user)
 
     if pago.estado == 'completado':
         return JsonResponse({'error': 'Pago ya completado'}, status=400)
@@ -62,10 +66,12 @@ def iniciar_pago(request, pago_id):
 
 
 @login_required
-@cliente_required
 def pago_resultado(request, pago_id):
     """Página de resultado tras el pago."""
-    pago = get_object_or_404(Pago, pk=pago_id, usuario=request.user)
+    if request.user.groups.filter(name='Establecimientos').exists() or request.user.is_superuser:
+        pago = get_object_or_404(Pago, pk=pago_id)
+    else:
+        pago = get_object_or_404(Pago, pk=pago_id, usuario=request.user)
 
     if pago.stripe_payment_intent_id:
         try:
